@@ -1,0 +1,45 @@
+name: qhub_app
+
+x-flutter: &flutter
+  working_dir: /workspace
+  volumes:
+    - .:/workspace
+    - pub-cache:/pub-cache
+    - gradle-cache:/root/.gradle
+  environment:
+    PUB_CACHE: /pub-cache
+
+services:
+  tooling:                     # analyze · test · pub get · build_runner
+    <<: *flutter
+    build: { context: ., dockerfile: docker/Dockerfile.tooling }
+    image: qhub_app/tooling
+    profiles: [tools]
+    command: ["bash"]
+
+  build-linux:                 # binario del escritorio
+    <<: *flutter
+    build: { context: ., dockerfile: docker/Dockerfile.linux }
+    image: qhub_app/build-linux
+    profiles: [build]
+    working_dir: /workspace/apps/admin_desktop
+    command: ["bash", "-lc", "flutter pub get && flutter build linux --release"]
+
+  build-android:               # APK del móvil
+    <<: *flutter
+    build: { context: ., dockerfile: docker/Dockerfile.android }
+    image: qhub_app/build-android
+    profiles: [build]
+    working_dir: /workspace/apps/mobile
+    command: ["bash", "-lc", "yes | flutter doctor --android-licenses >/dev/null 2>&1; flutter pub get && flutter build apk --release"]
+
+  qhub-api:                    # API local (usa el compose de su proyecto, solo lectura)
+    build: { context: /home/miguelzambrano/projects/Qhub/qhub-api, dockerfile: dockerfile }
+    image: qhub_app/qhub-api
+    profiles: [local-api]
+    env_file: [/home/miguelzambrano/projects/Qhub/qhub-api/.env]
+    ports: ["127.0.0.1:8000:8000"]
+
+volumes:
+  pub-cache:
+  gradle-cache:

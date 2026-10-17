@@ -1,0 +1,11 @@
+.env
+.env.secret
+**/.env
+**/.env.secret
+.dart_tool/
+build/
+.flutter-plugins*
+.packages
+*.iml
+.idea/
+.vscode/

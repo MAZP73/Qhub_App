@@ -1,0 +1,17 @@
+name: qhub_api_client
+description: "Cliente de la API Qhub, con domain y data separados. Dart puro."
+version: 0.1.0
+publish_to: none
+environment:
+  sdk: ^3.5.0
+dependencies:
+  dio: ^5.7.0
+  web_socket_channel: ^3.0.1
+  equatable: ^2.0.5
+  qhub_core:
+    path: ../qhub_core
+dev_dependencies:
+  test: ^1.25.0
+  lints: ^5.0.0
+  mocktail: ^1.0.4
+  stream_channel: ^2.1.2

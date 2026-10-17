@@ -1,0 +1,5 @@
+# Build del móvil (APK). La imagen base ya trae Android SDK y JDK.
+FROM ghcr.io/cirruslabs/flutter:stable
+ENV PUB_CACHE=/pub-cache FLUTTER_SUPPRESS_ANALYTICS=true CI=true
+RUN git config --global --add safe.directory '*'
+WORKDIR /workspace
