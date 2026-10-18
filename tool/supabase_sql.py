@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """Ejecuta un archivo SQL contra el proyecto Supabase usando la Management API (vía curl, IPv4).
-Lee SUPABASE_PROJECT_REF y SUPABASE_ACCESS_TOKEN de apps/web/.env.secret (nunca se imprimen).
+Lee SUPABASE_PROJECT_REF y SUPABASE_ACCESS_TOKEN de .env (nunca se imprimen).
 Uso: python3 -I tool/supabase_sql.py <archivo.sql>"""
 import json, pathlib, subprocess, sys, tempfile
 
 root = pathlib.Path(__file__).resolve().parent.parent
 env = {}
-for line in (root / "apps/web/.env.secret").read_text().splitlines():
+for line in (root / ".env").read_text().splitlines():
     if "=" in line and not line.startswith("#"):
         k, v = line.split("=", 1); env[k.strip()] = v.strip()
 ref, token = env["SUPABASE_PROJECT_REF"], env["SUPABASE_ACCESS_TOKEN"]

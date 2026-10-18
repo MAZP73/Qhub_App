@@ -1,9 +1,0 @@
-# Build del escritorio en Linux (GTK).
-FROM ghcr.io/cirruslabs/flutter:stable
-ENV PUB_CACHE=/pub-cache FLUTTER_SUPPRESS_ANALYTICS=true CI=true
-RUN apt-get update && apt-get install -y --no-install-recommends \
-      clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev libstdc++-12-dev libsecret-1-dev libjsoncpp-dev \
- && rm -rf /var/lib/apt/lists/* \
- && git config --global --add safe.directory '*' \
- && flutter config --enable-linux-desktop >/dev/null
-WORKDIR /workspace

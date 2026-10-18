@@ -132,3 +132,7 @@ export function ticketsIn(kind: Kind, body: unknown): Record<string, unknown>[] 
   }
   return [];
 }
+
+/** Ver las colas de una organización y sacar turno exige estar vinculado a ella (o haber sido su cliente antes). Lo propio —mis turnos, avisos— no. */
+const NEEDS_LINK: ReadonlySet<Kind> = new Set<Kind>(["queues_list", "queue_get", "queue_schedule", "queue_slots", "queue_state", "ticket_create"]);
+export const requiresLink = (kind: Kind): boolean => NEEDS_LINK.has(kind);

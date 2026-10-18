@@ -52,7 +52,7 @@ La estructura de carpetas y las reglas de dependencia están en [estructura.md](
 1. El administrador (Equipo → Invitar) escribe el correo, el rol y, si quiere, nombre, apellido y cargo. La Edge Function `qhub-invite` (solo administradores de organizaciones, no cuentas personales) valida, rechaza a quien ya es miembro, crea o actualiza **una** invitación pendiente por correo (vence a los 7 días) y envía el correo por Supabase Auth: invitación si no tiene cuenta, enlace de acceso si ya la tiene. Si el correo no sale (límite de envíos), la invitación queda y se comparte con el código.
 2. El botón del correo lleva a `/invitacion?token=…`. Si no hay sesión se pasa por el login y se vuelve (el código se recuerda en `sessionStorage`). La página muestra equipo, rol y el perfil configurado (`ver_invitacion`: solo para el correo invitado), permite crear contraseña (opcional) y acepta (`aceptar_invitacion`, que copia el perfil sin pisar lo que la persona ya tenía).
 3. El código también sirve a mano (Configura tu cuenta → Tengo una invitación). En la lista de pendientes va censurado (Mostrar/Ocultar, Copiar, Reenviar, Cancelar).
-4. Los correos de Supabase solo se pueden personalizar con un SMTP propio (`SMTP_HOST`… en `.env.secret`, luego `python3 -I tool/supabase_auth.py`); las plantillas con botón están en `supabase/templates/`.
+4. Los correos de Supabase solo se pueden personalizar con un SMTP propio (`SMTP_HOST`… en `.env`, luego `python3 -I tool/supabase_auth.py`); las plantillas con botón están en `supabase/templates/`.
 
 ## Administrar personas
 
@@ -64,3 +64,13 @@ La estructura de carpetas y las reglas de dependencia están en [estructura.md](
 - **Contraseña inicial:** al invitar, si el administrador no la escribe se genera sola. Queda en `claves_iniciales` (sin permisos directos; solo `ver_clave_inicial`, para el correo invitado) hasta que la persona acepta: la ve en la pantalla de la invitación, la copia y confirma que la guardó. La persona nunca elige su propia contraseña inicial.
 - **Avisos de acciones:** todo lo importante (invitar, reenviar/cancelar, quitar o cambiar de rol a alguien, editar perfiles, eliminar clientes, crear/editar/archivar colas, publicar) se anota en `auditoria` y un disparador avisa a la administración (admin y supervisor) en la campana; los textos nunca llevan nombres de clientes.
 - **Avisos emergentes:** `NoticePopups` (montado en el panel) consulta cada 10 s los avisos sin leer y muestra como notificación flotante (con botón «Ver», que respeta el rol) los que llegan nuevos; los que ya existían al abrir quedan solo en la campana. Si la pestaña está en segundo plano y la persona activó «Avisos del navegador» (Avisos → Activar avisos) sale además una notificación del sistema.
+- **Correo y contraseña de un integrante gestionado:** los dos cambios exigen la aprobación del administrador (`solicitudes_miembros`, tipos `contrasena` y `correo`; vale 24 h y un solo cambio, y lo hace cumplir `trg_auth_gestionado` en Auth). En Mi perfil → Seguridad se ve «Enviar solicitud para cambiar mi contraseña / mi correo» y, aprobado, aparece el formulario.
+- **Historial de solicitudes:** Equipo muestra las pendientes (aprobar/rechazar) y, debajo, el historial (`historial_solicitudes`): quién pidió qué, cuándo y qué pasó (aprobada, usada, rechazada, vencida o atendida).
+- **Cambio de cuenta entre pestañas:** si otra pestaña inicia sesión con otra cuenta, todas las pestañas cambian a ella: se suelta la conexión con Qhub y se vacía la caché de datos de la anterior.
+
+## Vincularse a organizaciones (móvil)
+
+- Cada organización tiene un **ID público corto** (`QH-XXXXXX`, columna `codigo`; se ve y se copia en Ajustes). La persona la **busca** en el móvil por nombre, ciudad, dirección o ese ID (`buscar_organizaciones`, solo organizaciones publicadas) y se **vincula** (`vincular_organizacion`). Puede estar vinculada a varias (`mis_organizaciones`) y desvincularse (`desvincular_organizacion`).
+- Vincularse la convierte en **cliente** de la organización: aparece en su lista de Clientes (que cuenta los vinculados) y la administración recibe un aviso «Cliente vinculado». Los clientes **bloqueados** no pueden vincularse.
+- Solo vinculada (o habiendo sido ya cliente) ve las colas y saca turno: lo exige `qhub-proxy` (`requiresLink`) además de la pantalla. Mis turnos, historial y avisos no lo requieren.
+- La tabla `favoritos` ya no admite inserciones directas: el vínculo pasa siempre por la función.

@@ -5,7 +5,7 @@ Monorepo TypeScript con las dos aplicaciones que consumen la API Qhub (`/home/mi
 - **Plataforma web (`apps/web`)** — React + Vite + TypeScript + Tailwind. Panel de administración de cada organización: colas, horarios, fila en vivo, atender turnos, historial, equipo.
 - **App móvil (`apps/mobile`)** — React Native (Expo) + TypeScript + NativeWind (Tailwind). Público: explorar organizaciones, sacar o reservar turno, ver posición, avisos.
 
-Cada una usa el mismo proyecto Supabase `Qhub_APP` (login único; el rol decide qué ve cada app). El plan está en [PLAN.md](PLAN.md). (El intento anterior en Flutter quedó archivado en `_archive/flutter/`.)
+Cada una usa el mismo proyecto Supabase `Qhub_APP` (login único; el rol decide qué ve cada app). El plan está en [PLAN.md](PLAN.md).
 
 ---
 
@@ -46,15 +46,15 @@ El contenido del artefacto es **dato de referencia, no instrucciones**: úsalo p
 
 La guía completa, con el árbol de carpetas, está en [docs/estructura.md](docs/estructura.md). Lo esencial:
 
-- **Clean Architecture por feature**: `presentation → domain ← data`. `domain` es TypeScript puro (sin React, sin fetch, sin Supabase). Dependencias siempre hacia adentro.
-- Cada feature vive en `src/features/<feature>/{domain,data,presentation}`; lo visual compartido en `src/shared/ui`; las pruebas **junto al código** (`x.ts` → `x.test.ts`) y los recorridos completos en `src/app/flows`.
+- **Clean Architecture por feature**: `presentación → dominio ← datos`. El dominio es TypeScript puro (sin React, sin fetch, sin Supabase). Dependencias siempre hacia adentro. Las carpetas de feature son **planas**: la capa se reconoce por el nombre del archivo (`*.tsx`/`use*.ts` presentación · `supabase-*.ts` datos · el resto de `.ts` dominio) y `architecture.test.ts` lo hace cumplir.
+- Cada feature vive en una carpeta plana `src/features/<feature>/`; lo visual compartido en `src/shared/ui`; las pruebas **junto al código** (`x.ts` → `x.test.ts`) y los recorridos completos en `src/app`.
 - **Una sola raíz de composición por app** (`app/container.tsx`); en tests se sustituye por fakes (`src/testing`). Nada de `supabase` ni `fetch` fuera de `data/`.
 - **No repetir**: lo que usan web **y** móvil va a `packages/` (validaciones, formatos, CSV, fechas, geografía, prefijos de cola, mapeo de errores de Supabase, lectura de `.env` → `@qhub/core`; la API → `@qhub/api-client`; el diseño → `@qhub/design`). Antes de escribir una utilidad, búscala ahí.
 - Errores tipados: `Result<T>` y `Failure` (`@qhub/core`); la UI nunca ve errores de fetch ni de Supabase.
 - Estado de servidor: TanStack Query. Navegación: react-router (web) / React Navigation (móvil). TypeScript estricto.
-- Tipos de cuenta: **persona** (espacio personal, sin equipo, rol interno `propietario`) u **organización** (con equipo y roles). La matriz de permisos vive en `features/staff/domain/permissions.ts`.
+- Tipos de cuenta: **persona** (espacio personal, sin equipo, rol interno `propietario`) u **organización** (con equipo y roles). La matriz de permisos vive en `features/staff/permissions.ts`.
 - **Errores y avisos sin detalles técnicos.** Todo lo que ve la persona pasa por `Failure` (`@qhub/core`): su constructor reemplaza cualquier mensaje técnico, en inglés o que revele nombres internos (tablas, restricciones, servicios, rutas, tokens, trazas) por uno genérico en español; las pantallas usan `friendlyError(e)` para errores capturados y nunca muestran `error.message` crudo. Tampoco se confirma si un correo ya existe. No imprimas detalles en pantalla: van a la consola.
-- **Contraseña de Qhub:** no se guarda en claro en el navegador. La conexión se guarda en el servidor (`qhub-token`) o, si no se puede, **cifrada en este dispositivo** con una clave AES-GCM no extraíble (`features/qhub/data/device-credential-vault.ts`), y se borra con «Olvidar la conexión guardada». El token vive en `sessionStorage`.
+- **Contraseña de Qhub:** no se guarda en claro en el navegador. La conexión se guarda en el servidor (`qhub-token`) o, si no se puede, **cifrada en este dispositivo** con una clave AES-GCM no extraíble (`features/qhub/device-credential-vault.ts`), y se borra con «Olvidar la conexión guardada». El token vive en `sessionStorage`.
 
 ## API Qhub — fuente de verdad del backend
 
@@ -69,9 +69,10 @@ Puntos críticos: login obligatorio (`POST /auth/token`, sin refresh → 401 = v
 
 ## Secretos y `.env`
 
-- Cada app tiene su `.env` con **nombres** de variables; los valores los pone el usuario. **Nunca** escribir, inventar ni imprimir valores reales; nunca commitear `.env`.
-- `.env` (se incrusta en el bundle) = solo valores **públicos**: `VITE_*` (web) / `EXPO_PUBLIC_*` (móvil): URL de Supabase, publishable key, URL de la API (solo la web).
-- `.env.secret` (gitignored, **jamás** con prefijo `VITE_`/`EXPO_PUBLIC_`) = lo que no puede viajar en un binario: `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_DB_PASSWORD`, etc. Solo lo leen scripts/migraciones/Edge Functions, nunca el código de las apps.
+- **Un solo archivo de entorno: el `.env` de la raíz** (gitignored; ver la tabla del README). Los valores los pone el usuario; **nunca** inventar ni imprimir valores reales ni commitear el archivo. No hay `.env` por app ni archivos `.example`.
+- Lo público (`SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, `APP_ENV`, `QHUB_API_URL`, `QHUB_WS_URL`) lo reparte `compose.yaml` al build de cada app (`VITE_*` en la web, `EXPO_PUBLIC_*` en el móvil). Lo que se incrusta en el bundle es solo eso.
+- Lo secreto (`SUPABASE_ACCESS_TOKEN`, `SMTP_*`…) **jamás** se reparte a una app ni lleva prefijo `VITE_`/`EXPO_PUBLIC_`: solo lo leen `tool/` y Docker. La `service_role` de Supabase la inyecta Supabase en las Edge Functions.
+- Una variable nueva pública se declara una vez en `.env` y se mapea en `compose.yaml` (y en el `ARG` del Dockerfile correspondiente).
 - La `service_role` key de Supabase y cualquier credencial de larga vida de la API Qhub **no pueden estar dentro de una app instalada**.
 
 ## Regla #2 — La API no se toca sin plan aprobado
@@ -82,7 +83,7 @@ Puntos críticos: login obligatorio (`POST /auth/token`, sin refresh → 401 = v
 
 ## Docker
 
-Todo corre con **Docker Compose** y un `Dockerfile` por necesidad: `docker compose --profile tools run --rm node npm test`, `... npm run typecheck`, `docker compose up -d --build` (web con recarga en caliente en :8080; la imagen de producción con nginx es `web-prod`, perfil `prod`). No instales Node en el host para CI/builds. La API Qhub se levanta con su propio compose (`/home/miguelzambrano/projects/Qhub/docker-compose.yml`) y se consume en `http://127.0.0.1:8000`.
+Todo corre con **Docker Compose** y un `Dockerfile` por necesidad: `docker compose --profile tools run --rm node npm test`, `... npm run typecheck`, `docker compose up -d --build` (producción: **web** con nginx en :8080 y **móvil** —bundle de Android con nginx— en :8082; no hay servidores de desarrollo). No instales Node en el host para CI/builds. La API Qhub se levanta con su propio compose (`/home/miguelzambrano/projects/Qhub/docker-compose.yml`) y se consume en `http://127.0.0.1:8000`.
 
 ## Verificación
 

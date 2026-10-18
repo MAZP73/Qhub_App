@@ -4,21 +4,21 @@ import {
   ApiContext, AuthRepositoryImpl, FetchTransport, HealthRepositoryImpl, NotificationRepositoryImpl, QueueRepositoryImpl, RealtimeRepositoryImpl, TicketRepositoryImpl,
   type AuthRepository, type HealthRepository, type NotificationRepository, type QueueRepository, type RealtimeRepository, type TicketRepository,
 } from '@qhub/api-client';
-import { ConnectToQhub, type TokenStore } from '@/features/qhub/domain/connection';
-import { SessionTokenStore } from '@/features/qhub/data/session-token-store';
-import { SupabaseStaffRepository } from '@/features/staff/data/supabase-staff-repository';
-import type { StaffRepository } from '@/features/staff/domain';
-import { SupabaseNotificationsRepository } from '@/features/notifications/data/supabase-notifications-repository';
-import type { NotificationsRepository } from '@/features/notifications/domain/notifications';
-import { SupabaseClientsRepository } from '@/features/clients/data/supabase-clients-repository';
-import type { ClientsRepository } from '@/features/clients/domain/clients';
-import { SupabaseQhubLinkRepository } from '@/features/qhub/data/supabase-qhub-link-repository';
-import type { QhubLinkRepository } from '@/features/qhub/domain/link';
-import { DeviceCredentialVault } from '@/features/qhub/data/device-credential-vault';
-import { SupabaseSecurityRepository } from '@/features/security/data/supabase-security-repository';
-import type { SecurityRepository } from '@/features/security/domain/security';
+import { ConnectToQhub, type TokenStore } from '@/features/qhub/connection';
+import { SessionTokenStore } from '@/features/qhub/session-token-store';
+import { SupabaseStaffRepository } from '@/features/staff/supabase-staff-repository';
+import type { StaffRepository } from '@/features/staff';
+import { SupabaseNotificationsRepository } from '@/features/notifications/supabase-notifications-repository';
+import type { NotificationsRepository } from '@/features/notifications/notifications';
+import { SupabaseClientsRepository } from '@/features/clients/supabase-clients-repository';
+import type { ClientsRepository } from '@/features/clients/clients';
+import { SupabaseQhubLinkRepository } from '@/features/qhub/supabase-qhub-link-repository';
+import type { QhubLinkRepository } from '@/features/qhub/link';
+import { DeviceCredentialVault } from '@/features/qhub/device-credential-vault';
+import { SupabaseSecurityRepository } from '@/features/security/supabase-security-repository';
+import type { SecurityRepository } from '@/features/security/security';
 import type { AppEnv } from './env';
-import { AppSession, type SessionSnapshot } from '@/features/session/domain/app-session';
+import { AppSession, type SessionSnapshot } from '@/features/session/app-session';
 
 /** Raíz de composición: todas las dependencias de la app. En tests se sustituye por fakes. */
 export interface Container {

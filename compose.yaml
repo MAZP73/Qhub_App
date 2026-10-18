@@ -1,5 +1,17 @@
 name: qhub_app
 
+# Todo el entorno vive en el `.env` de la raíz (compose lo lee solo). Aquí se reparte a cada app con el prefijo que necesita.
+x-web-env: &web-env
+  VITE_APP_ENV: ${APP_ENV:?falta APP_ENV en .env}
+  VITE_QHUB_API_BASE_URL: ${QHUB_API_URL:?falta QHUB_API_URL en .env}
+  VITE_QHUB_WS_BASE_URL: ${QHUB_WS_URL:?falta QHUB_WS_URL en .env}
+  VITE_SUPABASE_URL: ${SUPABASE_URL:?falta SUPABASE_URL en .env}
+  VITE_SUPABASE_PUBLISHABLE_KEY: ${SUPABASE_PUBLISHABLE_KEY:?falta SUPABASE_PUBLISHABLE_KEY en .env}
+x-mobile-env: &mobile-env
+  EXPO_PUBLIC_APP_ENV: ${APP_ENV:?falta APP_ENV en .env}
+  EXPO_PUBLIC_SUPABASE_URL: ${SUPABASE_URL:?falta SUPABASE_URL en .env}
+  EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${SUPABASE_PUBLISHABLE_KEY:?falta SUPABASE_PUBLISHABLE_KEY en .env}
+
 x-node: &node
   build: { context: ., dockerfile: docker/Dockerfile.node }
   image: qhub_app/node
@@ -12,28 +24,42 @@ x-node: &node
     - .:/workspace
 
 services:
-  node:                        # npm install · typecheck · test · build
+  node:                        # herramientas (no se levanta solo): npm install · typecheck · test
     <<: *node
     profiles: [tools]
     command: ["bash"]
 
-  web:                         # `docker compose up -d --build` → http://localhost:8080 con recarga en caliente: editas un archivo y se ve al instante
-    <<: *node
-    working_dir: /workspace/apps/web
+  web:                         # `docker compose up -d --build` → plataforma web de producción (nginx) en http://localhost:8080
+    build: { context: ., dockerfile: docker/Dockerfile.web, args: *web-env }
+    image: qhub_app/web
     restart: unless-stopped
-    ports: ["127.0.0.1:8080:8080"]
-    command: ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "8080", "--strictPort"]
+    ports: ["127.0.0.1:8080:80"]
     healthcheck:
-      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8080/').then((r)=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
-      interval: 10s
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1/"]
+      interval: 15s
       timeout: 5s
       retries: 6
 
-  web-prod:                    # build de producción servido con nginx (para publicar): `docker compose --profile prod up -d --build web-prod`
-    build: { context: ., dockerfile: docker/Dockerfile.web }
-    image: qhub_app/web
-    profiles: [prod]
-    ports: ["127.0.0.1:8081:80"]
+  android:                     # emulador de Android en el PC, con la pantalla en el navegador (http://localhost:6080). Se usa con `tool/emulator.sh`
+    image: budtmo/docker-android:emulator_13.0
+    profiles: [android]
+    devices: ["/dev/kvm:/dev/kvm"]
+    ports: ["127.0.0.1:6080:6080"]
+    environment:
+      EMULATOR_DEVICE: Samsung Galaxy S10
+      WEB_VNC: "true"
+    volumes: ["./apk:/apk:ro"]
+
+  mobile:                      # también con `up -d --build`: bundle de producción de la app móvil (Android) servido con nginx en http://localhost:8082
+    build: { context: ., dockerfile: docker/Dockerfile.mobile, args: *mobile-env }
+    image: qhub_app/mobile
+    restart: unless-stopped
+    ports: ["127.0.0.1:8082:80"]
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1/metadata.json"]
+      interval: 15s
+      timeout: 5s
+      retries: 6
 
   qhub-api:                    # API local SIN credenciales reales: arranca, pero no opera
     build: { context: /home/miguelzambrano/projects/Qhub/qhub-api, dockerfile: dockerfile }

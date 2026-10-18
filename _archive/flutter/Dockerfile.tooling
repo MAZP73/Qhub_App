@@ -1,8 +1,0 @@
-# Toolchain Flutter para analyze / test / codegen / pub. Imagen estable fijada.
-FROM ghcr.io/cirruslabs/flutter:stable
-ENV PUB_CACHE=/pub-cache FLUTTER_SUPPRESS_ANALYTICS=true CI=true
-RUN git config --global --add safe.directory '*' \
- && flutter config --no-analytics --enable-linux-desktop >/dev/null \
- && dart pub global activate melos
-ENV PATH="$PATH:/pub-cache/bin"
-WORKDIR /workspace

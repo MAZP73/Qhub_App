@@ -25,7 +25,7 @@ step "Build de la plataforma web"
 $NODE 'npm run build -w @qhub/web 2>&1 | grep -E "built|error"'
 
 step "Bundle de la app móvil (Metro + NativeWind, Android)"
-$NODE 'cd apps/mobile && set -a && . ./.env && set +a && CI=1 npx expo export --platform android --output-dir /tmp/export 2>&1 | grep -E "hbc|Exported|rror"'
+$NODE 'cd apps/mobile && set -a && . ../../.env && set +a && export EXPO_PUBLIC_APP_ENV=$APP_ENV EXPO_PUBLIC_SUPABASE_URL=$SUPABASE_URL EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY=$SUPABASE_PUBLISHABLE_KEY && CI=1 npx expo export --platform android --output-dir /tmp/export 2>&1 | grep -E "hbc|Exported|rror"'
 
 step "Edge Functions (política del proxy)"
 # jsr.io a veces no responde desde Docker: se reintenta antes de dar el paso por fallido
@@ -54,14 +54,14 @@ if [[ -d "$API_DIR/tests" ]]; then
   docker run --rm -v "$API_DIR:/app" -w /app qhub_app/qhub-api python -m tests.test_turn_ownership
 fi
 
-if [[ -f apps/web/.env.secret ]]; then
+if [[ -f .env ]]; then
   step "Seguridad de la base (RLS) — transacción que se deshace"
   python3 -I tool/supabase_sql.py supabase/tests/rls_test.sql || true
 fi
 
 if [[ "${1:-}" == "--web-image" ]]; then
-  step "Imagen de producción de la web (nginx)"
-  docker compose --profile prod build web-prod
+  step "Imágenes de producción (web y móvil)"
+  docker compose build web mobile
 fi
 
 printf '\n\033[32m✔ Verificación completa\033[0m\n'

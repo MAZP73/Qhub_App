@@ -3,6 +3,9 @@
 **/dist
 **/.expo
 **/.env
-!apps/web/.env
-**/.env.secret
-_archive
+**/.env.*
+.git
+docs
+supabase
+tool
+apk

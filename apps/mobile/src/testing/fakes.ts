@@ -5,16 +5,17 @@ import type {
 import type { AppEnv } from '@/app/env';
 import { AppSession } from '@/app/session';
 import type { Container } from '@/app/container';
-import type { AppUser, UserRepository } from '@/features/auth/domain/user';
-import type { QhubGateway } from '@/features/gateway/domain/gateway';
-import type { HistoryEntry, HistoryRepository } from '@/features/history/domain/history';
-import type { OrganizationRepository, OrganizationSummary } from '@/features/organizations/domain/organizations';
-import { LoadActiveTickets } from '@/features/tickets/domain/active-tickets';
+import type { AppUser, UserRepository } from '@/features/auth/user';
+import type { QhubGateway } from '@/features/gateway/gateway';
+import type { HistoryEntry, HistoryRepository } from '@/features/history/history';
+import type { OrganizationRepository, OrganizationSummary } from '@/features/organizations/organizations';
+import type { EditRequest, EditRequestRepository } from '@/features/permissions/edit-requests';
+import { LoadActiveTickets } from '@/features/tickets/active-tickets';
 
 export const testEnv: AppEnv = { appEnv: 'production', supabaseUrl: 'https://x.supabase.co', supabaseKey: 'sb_publishable_test' };
 export const camila: AppUser = { id: 'u1', email: 'camila@x.co', displayName: 'Camila Ríos' };
-export const notaria: OrganizationSummary = { id: 'org1', name: 'Notaría 12', slug: 'notaria-12', address: 'Cra. 13 #54-21', city: 'Bogotá', phone: '601 555 0100' };
-export const banco: OrganizationSummary = { id: 'org2', name: 'Banco Cooperativo', slug: 'banco', city: 'Quito' };
+export const notaria: OrganizationSummary = { id: 'org1', code: 'QH-N12ABC', name: 'Notaría 12', slug: 'notaria-12', address: 'Cra. 13 #54-21', city: 'Bogotá', phone: '601 555 0100' };
+export const banco: OrganizationSummary = { id: 'org2', code: 'QH-BCO234', name: 'Banco Cooperativo', slug: 'banco', city: 'Quito' };
 
 export class FakeUserRepository implements UserRepository {
   user: AppUser | null; listeners = new Set<(u: AppUser | null) => void>(); signInFailure: Failure | null = null; calls: string[] = [];
@@ -27,18 +28,19 @@ export class FakeUserRepository implements UserRepository {
 }
 
 export class FakeOrganizationRepository implements OrganizationRepository {
-  favorites = new Set<string>(); searches: string[] = []; searchFailure: Failure | null = null;
+  linkedSet = new Set<string>(); searches: string[] = []; searchFailure: Failure | null = null; linkFailure: Failure | null = null;
   constructor(public orgs: OrganizationSummary[] = [notaria, banco]) {}
   async search(query: string): Promise<Result<OrganizationSummary[]>> {
     this.searches.push(query);
     if (this.searchFailure) return err(this.searchFailure);
     const q = query.toLowerCase();
-    return ok(this.orgs.filter((o) => !q || o.name.toLowerCase().includes(q) || (o.city ?? '').toLowerCase().includes(q)));
+    return ok(this.orgs.filter((o) => !q || o.name.toLowerCase().includes(q) || (o.city ?? '').toLowerCase().includes(q) || (o.code ?? '').toLowerCase() === q).map((o) => ({ ...o, linked: this.linkedSet.has(o.id) })));
   }
   async get(id: string): Promise<Result<OrganizationSummary>> { const o = this.orgs.find((x) => x.id === id); return o ? ok(o) : err(notFoundFailure()); }
   async queuePrefixes() { return ok({ q1: 'E' } as Record<string, string>); }
-  async favoriteIds() { return ok(new Set(this.favorites)); }
-  async setFavorite(id: string, fav: boolean): Promise<Result<void>> { if (fav) this.favorites.add(id); else this.favorites.delete(id); return ok(undefined); }
+  async linked() { return ok(this.orgs.filter((o) => this.linkedSet.has(o.id)).map((o) => ({ ...o, linked: true }))); }
+  async link(id: string): Promise<Result<void>> { if (this.linkFailure) return err(this.linkFailure); this.linkedSet.add(id); return ok(undefined); }
+  async unlink(id: string): Promise<Result<void>> { this.linkedSet.delete(id); return ok(undefined); }
 }
 
 export class FakeHistoryRepository implements HistoryRepository {
@@ -110,11 +112,19 @@ export class FakeGateway implements QhubGateway {
   notifications() { return this.notificationRepo; }
 }
 
-export interface TestContainer extends Container { fakes: { users: FakeUserRepository; orgs: FakeOrganizationRepository; history: FakeHistoryRepository; gateway: FakeGateway } }
+export class FakeEditRequests implements EditRequestRepository {
+  calls: string[] = [];
+  constructor(public items: EditRequest[] = []) {}
+  async pending(): Promise<Result<EditRequest[]>> { return ok([...this.items]); }
+  async respond(id: string, approve: boolean): Promise<Result<void>> { this.calls.push(`${approve ? 'approve' : 'reject'}:${id}`); this.items = this.items.filter((e) => e.id !== id); return ok(undefined); }
+}
+
+export interface TestContainer extends Container { fakes: { users: FakeUserRepository; orgs: FakeOrganizationRepository; history: FakeHistoryRepository; gateway: FakeGateway; editRequests: FakeEditRequests } }
 export function makeContainer(o: Partial<TestContainer['fakes']> = {}): TestContainer {
   const users = o.users ?? new FakeUserRepository();
   const orgs = o.orgs ?? new FakeOrganizationRepository();
   const history = o.history ?? new FakeHistoryRepository();
   const gateway = o.gateway ?? new FakeGateway();
-  return { env: testEnv, users, organizations: orgs, history, gateway, loadActiveTickets: new LoadActiveTickets(history, gateway, orgs), session: new AppSession(users), fakes: { users, orgs, history, gateway } };
+  const editRequests = o.editRequests ?? new FakeEditRequests();
+  return { env: testEnv, users, organizations: orgs, history, gateway, loadActiveTickets: new LoadActiveTickets(history, gateway, orgs), session: new AppSession(users), editRequests, fakes: { users, orgs, history, gateway, editRequests } };
 }

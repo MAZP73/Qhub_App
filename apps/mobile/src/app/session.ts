@@ -1,4 +1,4 @@
-import type { AppUser, UserRepository } from '@/features/auth/domain/user';
+import type { AppUser, UserRepository } from '@/features/auth/user';
 
 export type Loadable<T> = { status: 'loading' } | { status: 'ready'; value: T };
 

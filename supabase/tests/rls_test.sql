@@ -154,9 +154,10 @@ begin
 
   -- 11. datos personales del público: favoritos, dispositivos e historial son solo del dueño
   reset role;
+  update public.organizaciones set vinculada = true, publica = true, activa = true where id = org;
   perform set_config('request.jwt.claims', json_build_object('sub', c, 'role', 'authenticated')::text, true);
   set local role authenticated;
-  insert into public.favoritos (usuario_id, organizacion_id) values (c, org);
+  perform public.vincular_organizacion(org);                         -- vincularse pasa por la función
   insert into public.dispositivos (usuario_id, plataforma, token_push) values (c, 'android', 'tok-c');
   begin
     insert into public.historial_turnos (usuario_id, organizacion_id, qhub_turno_id, qhub_cola_id, estado) values (c, org, gen_random_uuid(), gen_random_uuid(), 'en_espera');
@@ -497,6 +498,18 @@ begin
   insert into public.solicitudes_miembros (organizacion_id, usuario_id, tipo, estado, respondida_en) values (org, c, 'contrasena', 'aprobada', now());
   update auth.users set encrypted_password = 'otra-clave-2' where id = c;       -- con el permiso aprobado, este cambio lo gasta
   begin update auth.users set encrypted_password = 'otra-clave-3' where id = c; raise exception 'FALLO 28c: un permiso sirvió dos veces'; exception when insufficient_privilege then null; end;
+  insert into public.solicitudes_miembros (organizacion_id, usuario_id, tipo, estado, respondida_en) values (org, c, 'correo', 'aprobada', now());
+  update auth.users set email = 'nuevo_'||c||'@test.local' where id = c;           -- con el permiso de correo aprobado, el cambio pasa
+  begin update auth.users set email = 'otro2_'||c||'@test.local' where id = c; raise exception 'FALLO 28d: el permiso de correo sirvió dos veces'; exception when insufficient_privilege then null; end;
+  perform set_config('request.jwt.claims', json_build_object('sub', a, 'role', 'authenticated')::text, true);
+  set local role authenticated;
+  select count(*) into n from public.historial_solicitudes(org) where usuario_id = c and tipo = 'contrasena' and resultado = 'usada';
+  if n < 1 then raise exception 'FALLO 28e: el historial no muestra las solicitudes ya resueltas'; end if;
+  reset role;
+  perform set_config('request.jwt.claims', json_build_object('sub', b, 'role', 'authenticated')::text, true);
+  set local role authenticated;
+  begin perform public.historial_solicitudes(org); raise exception 'FALLO 28f: un no administrador vio el historial'; exception when insufficient_privilege then null; end;
+  reset role;
   update auth.users set encrypted_password = 'clave-admin-1' where id = a;      -- el administrador se gestiona solo
   checks := checks + 1;
 
@@ -508,6 +521,61 @@ begin
   select count(*) into n from public.notificaciones_staff where organizacion_id = org and titulo = 'Cliente eliminado' and mensaje like '%' || coalesce((select nombre from public.perfiles where id = c), 'zzz') || '%';
   if n <> 0 then raise exception 'FALLO 29b: el aviso de cliente eliminado llevó su nombre'; end if;
   checks := checks + 1;
+
+  -- 30. móvil: buscar por nombre o ID, vincularse (solo a organizaciones publicadas y sin bloqueo) y desvincularse
+  update public.organizaciones set vinculada = true, publica = true, activa = true where id = org;
+  perform set_config('request.jwt.claims', json_build_object('sub', b, 'role', 'authenticated')::text, true);
+  set local role authenticated;
+  select count(*) into n from public.buscar_organizaciones((select codigo from public.organizaciones where id = org)) where id = org and not vinculada;
+  if n <> 1 then raise exception 'FALLO 30a: no se encontró la organización por su ID'; end if;
+  select count(*) into n from public.buscar_organizaciones('Org invitaciones') where id = org;
+  if n <> 1 then raise exception 'FALLO 30b: no se encontró por nombre'; end if;
+  begin insert into public.favoritos (usuario_id, organizacion_id) values (b, org); raise exception 'FALLO 30c: se vinculó sin pasar por la función'; exception when insufficient_privilege then null; end;
+  perform public.vincular_organizacion(org);
+  perform public.vincular_organizacion(org);
+  select count(*) into n from public.mis_organizaciones() where id = org;
+  if n <> 1 then raise exception 'FALLO 30d: no aparece entre mis organizaciones (o se duplicó)'; end if;
+  select count(*) into n from public.buscar_organizaciones('Org invitaciones') where id = org and vinculada;
+  if n <> 1 then raise exception 'FALLO 30e: no se marca como vinculada'; end if;
+  perform public.desvincular_organizacion(org);
+  select count(*) into n from public.mis_organizaciones();
+  if n <> 0 then raise exception 'FALLO 30f: no se desvinculó'; end if;
+  reset role;
+  insert into public.clientes_bloqueados (organizacion_id, usuario_id, bloqueado_por) values (org, b, a);
+  perform set_config('request.jwt.claims', json_build_object('sub', b, 'role', 'authenticated')::text, true);
+  set local role authenticated;
+  begin perform public.vincular_organizacion(org); raise exception 'FALLO 30g: un cliente bloqueado se vinculó'; exception when insufficient_privilege then null; end;
+  reset role;
+  update public.organizaciones set publica = false where id = org;
+  perform set_config('request.jwt.claims', json_build_object('sub', c, 'role', 'authenticated')::text, true);
+  set local role authenticated;
+  begin perform public.vincular_organizacion(org); raise exception 'FALLO 30h: se vinculó a una organización no publicada'; exception when sqlstate 'P0002' then null; end;
+  select count(*) into n from public.buscar_organizaciones('Org invitaciones');
+  if n <> 0 then raise exception 'FALLO 30i: una organización no publicada aparece en la búsqueda'; end if;
+  reset role; checks := checks + 1;
+
+  -- 31. el cliente ve y responde las solicitudes de edición dirigidas a él; nadie más las ve
+  insert into public.favoritos (usuario_id, organizacion_id) select c, org where not exists (select 1 from public.favoritos where usuario_id = c and organizacion_id = org);
+  perform set_config('request.jwt.claims', json_build_object('sub', a, 'role', 'authenticated')::text, true);
+  set local role authenticated;
+  tok := public.solicitar_edicion_cliente(org, c, 'Corregir apellido')::text;
+  reset role;
+  perform set_config('request.jwt.claims', json_build_object('sub', c, 'role', 'authenticated')::text, true);
+  set local role authenticated;
+  select count(*) into n from public.mis_solicitudes_edicion() where id = tok::uuid and organizacion = 'Org invitaciones';
+  if n <> 1 then raise exception 'FALLO 31a: el cliente no ve la solicitud'; end if;
+  reset role;
+  perform set_config('request.jwt.claims', json_build_object('sub', b, 'role', 'authenticated')::text, true);
+  set local role authenticated;
+  select count(*) into n from public.mis_solicitudes_edicion();
+  if n <> 0 then raise exception 'FALLO 31b: otra persona ve solicitudes ajenas'; end if;
+  reset role;
+  perform set_config('request.jwt.claims', json_build_object('sub', c, 'role', 'authenticated')::text, true);
+  set local role authenticated;
+  perform public.responder_edicion_cliente(tok::uuid, false);
+  select count(*) into n from public.mis_solicitudes_edicion();
+  if n <> 0 then raise exception 'FALLO 31c: la solicitud respondida sigue pendiente'; end if;
+  reset role; checks := checks + 1;
 
   -- 18. eliminar cuenta: el único admin de un equipo no puede irse; el público sí, y se lleva sus datos; anon no puede
   perform set_config('request.jwt.claims', json_build_object('sub', a, 'role', 'authenticated')::text, true);

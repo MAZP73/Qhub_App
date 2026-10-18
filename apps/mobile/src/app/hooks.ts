@@ -13,9 +13,14 @@ export function useOrgSearch(query: string) {
   const { organizations } = useContainer();
   return useQuery({ queryKey: ['orgs', query], queryFn: async () => unwrap(await organizations.search(query)) });
 }
-export function useFavorites() {
+/** Organizaciones a las que estoy vinculado. */
+export function useLinkedOrgs() {
   const { organizations } = useContainer();
-  return useQuery({ queryKey: ['favorites'], queryFn: async () => { const r = await organizations.favoriteIds(); return r.ok ? r.value : new Set<string>(); } });
+  return useQuery({ queryKey: ['linked'], queryFn: async () => unwrap(await organizations.linked()) });
+}
+export function useLinkedIds() {
+  const q = useLinkedOrgs();
+  return { ...q, ids: new Set((q.data ?? []).map((o) => o.id)) };
 }
 export function useOrg(id: string) {
   const { organizations } = useContainer();

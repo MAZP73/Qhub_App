@@ -1,7 +1,7 @@
 .env
-.env.secret
+.env.*
 **/.env
-**/.env.secret
+**/.env.*
 node_modules/
 dist/
 build/
@@ -9,3 +9,5 @@ build/
 coverage/
 *.tsbuildinfo
 .npm-cache/
+supabase/.temp/
+apk/

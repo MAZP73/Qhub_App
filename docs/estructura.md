@@ -16,8 +16,8 @@ Qhub_App/
 ├─ supabase/                     Migraciones, Edge Functions (qhub-proxy, qhub-link) y pruebas de RLS
 ├─ docker/  compose.yaml         Imágenes (node, nginx) y servicios
 ├─ tool/                         verify.sh, acceso a SQL y configuración de autenticación de Supabase
-├─ docs/                         Esta guía y la de arquitectura
-└─ _archive/flutter/             Intento anterior (solo consulta)
+
+└─ docs/                         Esta guía y la de arquitectura
 ```
 
 ## Dentro de cada app
@@ -28,31 +28,37 @@ src/
 ├─ app/                          Composición: lo único que conoce a todas las features
 │  ├─ App.tsx  container.tsx     Raíz de dependencias (en las pruebas se sustituye por fakes)
 │  ├─ env.ts                     Variables públicas (VITE_* / EXPO_PUBLIC_*)
-│  ├─ routing/                   Rutas, puerta de acceso y `resolve-redirect` (política pura y probada)
-│  └─ flows/                     Pruebas de recorridos completos que cruzan varias features
-├─ features/<feature>/           Una carpeta por capacidad de negocio
-│  ├─ domain/                    TypeScript puro: entidades, reglas, puertos (interfaces) y casos de uso
-│  ├─ data/                      Adaptadores de los puertos (Supabase, fetch, WebSocket)
-│  └─ presentation/              Pantallas, componentes y hooks de esa feature
+│  ├─ AppRoutes.tsx              Rutas y puerta de acceso (web); `resolve-redirect.ts` es la política pura y probada
+│  └─ *.test.tsx                 Pruebas de recorridos completos que cruzan varias features
+├─ features/<feature>/           Una carpeta PLANA por capacidad de negocio (sin subcarpetas)
 ├─ shared/
 │  ├─ ui/                        Kit visual (solo utilidades de Tailwind sobre los tokens)
-│  └─ lib/                       Utilidades de navegador sin negocio (p. ej. descargar un archivo)
+│  └─ *.ts                       Utilidades sin negocio (p. ej. `download.ts`, `invoke-function.ts`)
+├─ architecture.test.ts          Comprueba las reglas de capas por nombre de archivo
 └─ testing/                      Fakes, arnés de render y configuración de pruebas
 ```
 
-Las pruebas viven **junto a lo que prueban** (`algo.ts` → `algo.test.ts`). Las de recorridos completos, en `app/flows/`.
+Las pruebas viven **junto a lo que prueban** (`algo.ts` → `algo.test.ts`). Las de recorridos completos, en `app/`.
 
-## Reglas de dependencia
+## Capas: se reconocen por el nombre del archivo
+
+Cada feature es una sola carpeta; la capa de cada archivo la dice su nombre:
+
+| Archivo | Capa | Puede usar |
+|---|---|---|
+| `*.tsx`, `use*.ts`, `hooks.ts` | **presentación** (pantallas, componentes, hooks) | React, router, TanStack Query, el dominio y `shared/` |
+| `supabase-*.ts`, `device-*`, `session-token-store.ts` | **datos** (adaptadores) | Supabase, `fetch`, WebSocket, almacenamiento del navegador |
+| cualquier otro `.ts` (`organization.ts`, `permissions.ts`, `repository.ts`…) | **dominio** | solo TypeScript puro |
 
 ```
-presentation ──▶ domain ◀── data
-      │             ▲
-      └── shared ───┘          app/ solo cablea; ninguna feature importa de otra feature
-                               salvo lo que ésta publica en su `domain/` (p. ej. permisos, historial)
+presentación ──▶ dominio ◀── datos
+      │              ▲
+      └── shared ────┘         app/ solo cablea; ninguna feature importa de otra feature
+                               salvo lo que ésta publica como dominio (p. ej. permisos, historial)
 ```
 
-- `domain/` no importa React, `fetch`, Supabase ni nada de `data/` o `presentation/`.
-- Nada de Supabase ni `fetch` fuera de `data/`. Los errores llegan a la UI como `Failure`.
+- El dominio no importa React, `fetch`, Supabase, el router ni nada de datos o presentación. `architecture.test.ts` lo comprueba en cada corrida de pruebas.
+- Nada de Supabase ni `fetch` fuera de los archivos de datos. Los errores llegan a la UI como `Failure`.
 - Si algo lo necesitan **web y móvil**, va a `packages/` (no se copia). Si solo lo usa una app, se queda en ella.
 - Un archivo por concepto; nombres en `kebab-case` (lógica) y `PascalCase` (componentes).
 
@@ -61,7 +67,7 @@ presentation ──▶ domain ◀── data
 | Feature | Qué contiene |
 |---|---|
 | `session` | Estado de sesión de toda la app (usuario, organización, conexión con Qhub, verificación en dos pasos) |
-| `staff` | Dominio de personas y organización: identidad, roles, permisos, perfil, puertos y adaptador Supabase |
+| `staff` | Personas y organización: identidad, roles, permisos, perfil, puertos (`repository.ts`) y adaptador Supabase |
 | `auth` | Acceso, registro, alta de la cuenta (persona u organización), recuperar contraseña y código de verificación |
 | `qhub` | Conexión de la cuenta con la API Qhub |
 | `queues` · `live` · `history` | Colas y horarios, fila en vivo, historial y métricas |

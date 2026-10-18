@@ -1,5 +1,5 @@
 import { assert, assertEquals } from "jsr:@std/assert@1";
-import { decide, historyRow, ownsTicket, ticketsIn } from "./policy.ts";
+import { decide, historyRow, ownsTicket, requiresLink, ticketsIn } from "./policy.ts";
 
 const ORG = "11111111-1111-4111-8111-111111111111";
 const Q = "22222222-2222-4222-8222-222222222222";
@@ -89,4 +89,9 @@ Deno.test("historial: qué turnos se sincronizan", () => {
   const row = historyRow("u1", ORG, { id: T, cola_id: Q, numero: 5, estado: "en_espera", franja_inicio: "x" }, "Caja 1");
   assertEquals(row.qhub_turno_id, T);
   assertEquals(row.cola_nombre, "Caja 1");
+});
+
+Deno.test("vincularse: ver colas y sacar turno lo exigen; lo propio no", () => {
+  for (const k of ["queues_list", "queue_get", "queue_schedule", "queue_slots", "queue_state", "ticket_create"] as const) assert(requiresLink(k), k);
+  for (const k of ["ticket_mine", "ticket_get", "ticket_cancel", "ticket_postpone", "notif_list", "notif_read", "notif_delete"] as const) assertEquals(requiresLink(k), false, k);
 });

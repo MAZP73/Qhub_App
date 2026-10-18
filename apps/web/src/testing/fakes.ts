@@ -6,12 +6,12 @@ import {
 } from '@qhub/api-client';
 import type { AppEnv } from '@/app/env';
 import { buildTestSession } from './session';
-import type { TokenStore } from '@/features/qhub/domain/connection';
-import { EMPTY_PROFILE, type Invitation, type InvitationPreview, type InviteProfile, type InviteResult, type Member, type MemberProfile, type MemberRequest, type MyPermission, type RequestType, type Membership, type OrgRole, type Organization, type Profile, type StaffRepository, type StaffUser } from '@/features/staff/domain';
+import type { TokenStore } from '@/features/qhub/connection';
+import { EMPTY_PROFILE, type Invitation, type InvitationPreview, type InviteProfile, type InviteResult, type Member, type MemberProfile, type MemberRequest, type RequestRecord, type MyPermission, type RequestType, type Membership, type OrgRole, type Organization, type Profile, type StaffRepository, type StaffUser } from '@/features/staff';
 
 export const testEnv: AppEnv = { appEnv: 'production', apiBaseUrl: 'http://api.test', wsBaseUrl: 'ws://api.test', supabaseUrl: 'https://x.supabase.co', supabaseKey: 'sb_publishable_test' };
 
-export const org: Organization = { id: 'org1', kind: 'empresa', qhubConnected: false, name: 'Notaría 12', slug: 'notaria-12', timeZone: 'America/Guayaquil', published: false, linked: false };
+export const org: Organization = { id: 'org1', code: 'QH-7K2M9X', kind: 'empresa', qhubConnected: false, name: 'Notaría 12', slug: 'notaria-12', timeZone: 'America/Guayaquil', published: false, linked: false };
 export const ana: StaffUser = { id: 'u1', email: 'ana@x.co', displayName: 'Ana Gómez' };
 export const adminMembership: Membership = { organization: org, role: 'admin' };
 export const agentMembership: Membership = { organization: org, role: 'agente' };
@@ -109,7 +109,14 @@ export class FakeStaffRepository implements StaffRepository {
   permission: MyPermission | null = null;
   async requestChange(_o: string, type: RequestType, reason: string): Promise<Result<void>> { this.calls.push(`requestChange:${type}:${reason}`); this.permission = { status: 'pendiente', expiresAt: null }; return ok(undefined); }
   async pendingRequests(): Promise<Result<MemberRequest[]>> { return ok([...this.requests]); }
-  async respondRequest(id: string, approve: boolean): Promise<Result<void>> { this.calls.push(`respond:${id}:${approve}`); this.requests = this.requests.filter((r) => r.id !== id); return ok(undefined); }
+  history: RequestRecord[] = [];
+  async requestHistory(): Promise<Result<RequestRecord[]>> { return ok([...this.history]); }
+  async respondRequest(id: string, approve: boolean): Promise<Result<void>> {
+    this.calls.push(`respond:${id}:${approve}`);
+    const r = this.requests.find((x) => x.id === id);
+    if (r) this.history = [{ id: r.id, userId: r.userId, name: r.name, type: r.type, reason: r.reason, outcome: approve ? (r.type === 'datos' ? 'atendida' : 'aprobada') : 'rechazada', requestedAt: r.createdAt, answeredAt: new Date() }, ...this.history];
+    this.requests = this.requests.filter((x) => x.id !== id); return ok(undefined);
+  }
   async myPermission(): Promise<Result<MyPermission | null>> { return ok(this.permission); }
   async spendPasswordPermission(): Promise<Result<boolean>> { this.calls.push('spendPermission'); this.permission = { status: 'usada', expiresAt: null }; return ok(true); }
   async invitations() { return ok([...this.invitationsList]); }
@@ -207,9 +214,9 @@ export class FakeNotifications implements NotificationRepository {
 export { ApiContext, buildTestSession };
 
 
-import type { NotificationsRepository, StaffNotice } from '@/features/notifications/domain/notifications';
-import type { BlockedInfo, Client, EditPermission, ClientsRepository, ClientTicket } from '@/features/clients/domain/clients';
-import type { AccessInfo, ActivityItem, AssuranceState, MfaEnrollment, MfaFactor, SecurityRepository } from '@/features/security/domain/security';
+import type { NotificationsRepository, StaffNotice } from '@/features/notifications/notifications';
+import type { BlockedInfo, Client, EditPermission, ClientsRepository, ClientTicket } from '@/features/clients/clients';
+import type { AccessInfo, ActivityItem, AssuranceState, MfaEnrollment, MfaFactor, SecurityRepository } from '@/features/security/security';
 
 export const makeNotice = (id: string, o: Partial<StaffNotice> = {}): StaffNotice => ({ id, kind: 'cliente', title: `Aviso ${id}`, message: 'Detalle del aviso.', route: null, read: false, createdAt: new Date(), ...o });
 
@@ -285,7 +292,7 @@ export class FakeSecurity implements SecurityRepository {
 }
 
 
-import type { QhubLinkRepository } from '@/features/qhub/domain/link';
+import type { QhubLinkRepository } from '@/features/qhub/link';
 
 /** Conexión con Qhub guardada en el servidor (doble de prueba). */
 export class FakeQhubLink implements QhubLinkRepository {
@@ -305,7 +312,7 @@ export class FakeQhubLink implements QhubLinkRepository {
 }
 
 
-import type { CredentialVault, SavedCredential } from '@/features/qhub/domain/vault';
+import type { CredentialVault, SavedCredential } from '@/features/qhub/vault';
 
 /** Guardado en el dispositivo (en memoria). */
 export class FakeVault implements CredentialVault {

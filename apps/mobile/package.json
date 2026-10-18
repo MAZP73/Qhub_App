@@ -4,13 +4,9 @@
   "private": true,
   "main": "index.ts",
   "scripts": {
-    "start": "NODE_OPTIONS=--dns-result-order=ipv4first expo start",
-    "android": "NODE_OPTIONS=--dns-result-order=ipv4first expo start --android",
-    "ios": "NODE_OPTIONS=--dns-result-order=ipv4first expo start --ios",
     "typecheck": "tsc --noEmit",
     "test": "jest",
-    "export": "expo export --platform android",
-    "tunnel": "NODE_OPTIONS=--dns-result-order=ipv4first expo start --tunnel"
+    "export": "expo export --platform android"
   },
   "dependencies": {
     "@expo-google-fonts/ibm-plex-mono": "^0.4.1",

@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
 """Configura la autenticación del proyecto Supabase (Management API, curl por IPv4).
-Lee de apps/web/.env.secret: SUPABASE_PROJECT_REF, SUPABASE_ACCESS_TOKEN y, opcional, APP_URLS (separadas por coma; por defecto http://localhost:8080,http://localhost:5173). No imprime ningún secreto.
+Lee de .env: SUPABASE_PROJECT_REF, SUPABASE_ACCESS_TOKEN y, opcional, APP_URLS (separadas por coma; por defecto http://localhost:8080). No imprime ningún secreto.
 Uso: python3 -I tool/supabase_auth.py"""
 import json, pathlib, subprocess, sys, tempfile
 
 root = pathlib.Path(__file__).resolve().parent.parent
 env = {}
-for line in (root / "apps/web/.env.secret").read_text().splitlines():
+for line in (root / ".env").read_text().splitlines():
     if "=" in line and not line.startswith("#"):
         k, v = line.split("=", 1); env[k.strip()] = v.strip()
-urls = [u.strip().rstrip("/") for u in env.get("APP_URLS", "http://localhost:8080,http://localhost:5173").split(",") if u.strip()]
+urls = [u.strip().rstrip("/") for u in env.get("APP_URLS", "http://localhost:8080").split(",") if u.strip()]
 patch = {
     "site_url": urls[0],
     "uri_allow_list": ",".join(f"{u}/**" for u in urls),
@@ -48,7 +48,7 @@ for key, (subject, html) in mails.items():
     templates[f"mailer_templates_{key}_content"] = html
     (root / "supabase/templates").mkdir(exist_ok=True)
     (root / f"supabase/templates/{key}.html").write_text(html)      # copia para pegarla a mano en el panel si hiciera falta
-# Remitente propio (opcional): SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_ADMIN_EMAIL en .env.secret. Sin SMTP propio Supabase no deja personalizar los correos.
+# Remitente propio (opcional): SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_ADMIN_EMAIL en .env. Sin SMTP propio Supabase no deja personalizar los correos.
 smtp = {}
 if env.get("SMTP_HOST"):
     smtp = {"smtp_host": env["SMTP_HOST"], "smtp_port": env.get("SMTP_PORT", "587"), "smtp_user": env.get("SMTP_USER", ""), "smtp_pass": env.get("SMTP_PASS", ""),
@@ -67,7 +67,7 @@ res = call("PATCH", patch)
 if smtp: call("PATCH", smtp)
 tres = call("PATCH", templates)
 templates_ok = not tres.get("message")
-if not templates_ok: print("correos con la marca: no aplicados —", "Supabase solo permite personalizarlos con un SMTP propio (configura SMTP_HOST… en .env.secret). Las plantillas quedaron en supabase/templates/.")
+if not templates_ok: print("correos con la marca: no aplicados —", "Supabase solo permite personalizarlos con un SMTP propio (configura SMTP_HOST… en .env). Las plantillas quedaron en supabase/templates/.")
 now = call("GET")
 print("site_url:", now.get("site_url"))
 print("uri_allow_list:", now.get("uri_allow_list"))

@@ -2,7 +2,7 @@
 // La app autentica a la PERSONA con Supabase Auth; esta función usa la credencial de la ORGANIZACIÓN
 // (que nunca sale del servidor) y actúa como esa persona: X-Usuario-Id = id de Supabase, rol "cliente".
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { decide, historyRow, ownsTicket, ticketsIn } from "../_shared/policy.ts";
+import { decide, historyRow, ownsTicket, requiresLink, ticketsIn } from "../_shared/policy.ts";
 import { apiBase, forgetToken, tokenFor } from "../_shared/qhub.ts";
 
 const cors = {
@@ -41,6 +41,13 @@ Deno.serve(async (req) => {
   if (!org || !org.publica || !org.activa) return json(404, { error: "Organización no disponible" });
   const { data: cred } = await admin.from("organizacion_credenciales").select("qhub_identificador, qhub_password, qhub_api_key").eq("organizacion_id", orgId).maybeSingle();
   if (!cred) return json(503, { error: "Esta organización todavía no está disponible." });
+
+  // Ver las colas y sacar turno exige estar vinculado a la organización (o haber sido ya su cliente).
+  if (requiresLink(d.kind)) {
+    const { data: linked } = await admin.from("favoritos").select("usuario_id").eq("organizacion_id", orgId).eq("usuario_id", user.id).limit(1).maybeSingle();
+    const { data: past } = linked ? { data: null } : await admin.from("historial_turnos").select("id").eq("organizacion_id", orgId).eq("usuario_id", user.id).limit(1).maybeSingle();
+    if (!linked && !past) return envelope(403, { detail: "Vincúlate a esta organización para ver sus colas y sacar turno." });
+  }
 
   // Clientes bloqueados por la administración de la organización no pueden sacar turnos.
   if (d.kind === "ticket_create") {

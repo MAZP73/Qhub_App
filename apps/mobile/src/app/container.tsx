@@ -2,23 +2,25 @@ import 'react-native-url-polyfill/auto';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createClient } from '@supabase/supabase-js';
 import { createContext, useContext, useSyncExternalStore, type ReactNode } from 'react';
-import { SupabaseUserRepository } from '@/features/auth/data/supabase-user-repository';
-import type { UserRepository } from '@/features/auth/domain/user';
-import { ProxyQhubGateway } from '@/features/gateway/data/proxy-gateway';
-import { supabaseProxyInvoker } from '@/features/gateway/data/supabase-invoker';
-import type { QhubGateway } from '@/features/gateway/domain/gateway';
-import { SupabaseHistoryRepository } from '@/features/history/data/supabase-history-repository';
-import type { HistoryRepository } from '@/features/history/domain/history';
-import { SupabaseOrganizationRepository } from '@/features/organizations/data/supabase-organization-repository';
-import type { OrganizationRepository } from '@/features/organizations/domain/organizations';
-import { LoadActiveTickets } from '@/features/tickets/domain/active-tickets';
+import { SupabaseUserRepository } from '@/features/auth/supabase-user-repository';
+import type { UserRepository } from '@/features/auth/user';
+import { ProxyQhubGateway } from '@/features/gateway/proxy-gateway';
+import { supabaseProxyInvoker } from '@/features/gateway/supabase-invoker';
+import type { QhubGateway } from '@/features/gateway/gateway';
+import { SupabaseHistoryRepository } from '@/features/history/supabase-history-repository';
+import type { HistoryRepository } from '@/features/history/history';
+import { SupabaseOrganizationRepository } from '@/features/organizations/supabase-organization-repository';
+import type { OrganizationRepository } from '@/features/organizations/organizations';
+import { SupabaseEditRequestRepository } from '@/features/permissions/supabase-edit-request-repository';
+import type { EditRequestRepository } from '@/features/permissions/edit-requests';
+import { LoadActiveTickets } from '@/features/tickets/active-tickets';
 import type { AppEnv } from './env';
 import { AppSession } from './session';
 
 /** Raíz de composición. En tests se sustituye por fakes. */
 export interface Container {
   env: AppEnv; users: UserRepository; organizations: OrganizationRepository; history: HistoryRepository; gateway: QhubGateway;
-  loadActiveTickets: LoadActiveTickets; session: AppSession;
+  loadActiveTickets: LoadActiveTickets; session: AppSession; editRequests: EditRequestRepository;
 }
 
 export function buildContainer(env: AppEnv): Container {
@@ -27,7 +29,7 @@ export function buildContainer(env: AppEnv): Container {
   const organizations = new SupabaseOrganizationRepository(sb);
   const history = new SupabaseHistoryRepository(sb);
   const gateway = new ProxyQhubGateway(supabaseProxyInvoker(sb));
-  return { env, users, organizations, history, gateway, loadActiveTickets: new LoadActiveTickets(history, gateway, organizations), session: new AppSession(users) };
+  return { env, users, organizations, history, gateway, loadActiveTickets: new LoadActiveTickets(history, gateway, organizations), session: new AppSession(users), editRequests: new SupabaseEditRequestRepository(sb) };
 }
 
 const Ctx = createContext<Container | null>(null);

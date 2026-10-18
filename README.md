@@ -19,7 +19,7 @@ packages/
   api-client/    Cliente de la API Qhub: domain (entidades, puertos, casos de uso) + data (fetch, WebSocket)
   design/        Tokens → CSS vars + tema de Tailwind (web) + NativeWind (móvil), íconos y logos generados
 apps/
-  web/           features/{auth,qhub,shell,queues,live,history,team,settings,staff} → domain · data · presentation
+  web/           features/{auth,qhub,shell,queues,live,history,team,settings,staff}
   mobile/        features/{auth,organizations,gateway,tickets,notifications,history,profile}
 supabase/        migrations · functions (qhub-proxy, qhub-link + política con tests) · tests (RLS)
 docker/ compose.yaml tool/ docs/
@@ -27,26 +27,34 @@ docker/ compose.yaml tool/ docs/
 
 ## Estructura
 
-`apps/` (web y móvil) · `packages/` (core, api-client, design: lo compartido) · `supabase/` · `tool/` · `docs/`. Cada app se organiza por *feature* con `domain / data / presentation`, y lo común a web y móvil vive en `packages/` para no repetirlo. Guía completa: [docs/estructura.md](docs/estructura.md).
+`apps/` (web y móvil) · `packages/` (core, api-client, design: lo compartido) · `supabase/` · `tool/` · `docs/`. Cada app se organiza por *feature* (una carpeta plana por capacidad; la capa —dominio, datos o presentación— se reconoce por el nombre del archivo), y lo común a web y móvil vive en `packages/` para no repetirlo. Guía completa: [docs/estructura.md](docs/estructura.md).
 
 ## Cómo se ejecuta todo (Docker)
 
 ```bash
 tool/verify.sh                   # tipos + tests + builds + política del proxy + contrato contra la API + RLS
-tool/verify.sh --web-image       # además construye la imagen de producción de la web (nginx)
+tool/verify.sh --web-image       # además construye las imágenes de producción (web y móvil)
 
-docker compose up -d --build                               # plataforma web en http://localhost:8080 con recarga en caliente (editas y se ve al instante)
-docker compose --profile prod up -d --build web-prod      # build de producción con nginx (http://localhost:8081), para publicar
+docker compose up -d --build                               # producción: web (nginx) en http://localhost:8080 y móvil (bundle Android) en http://localhost:8082
 docker compose --profile tools run --rm node bash          # shell con Node 22
 docker compose --profile local-api up -d qhub-api          # API local (sin credenciales reales)
 docker compose --profile local-api run --rm contract-tests # pruebas de integración contra ella
 ```
 
-**Móvil.** `npx expo start` en `apps/mobile` (en tu máquina, con Expo Go o un emulador) para desarrollar. El bundle de Android se verifica en Docker con `expo export`; el APK/IPA firmado se genera con EAS Build o con `expo prebuild` + Gradle/Xcode.
+**Móvil.** `tool/build-apk.sh` compila el **APK de Android** en Docker (gratis, sin cuenta de Expo) y lo deja en `apk/qhub.apk`: cópialo al teléfono (cable, Drive, WhatsApp…) e instálalo aceptando «instalar apps de orígenes desconocidos». La primera vez tarda bastante (descarga el SDK de Android); las siguientes aprovechan la caché. Está firmado con llave de depuración: sirve para instalar directo, no para subirlo a Google Play (para eso, EAS Build o tu propia llave). `docker compose up -d --build` además compila el bundle de producción (`expo export`) y lo sirve con nginx en `http://localhost:8082`. No hay Expo Go ni servidores de desarrollo.
 
 ## Configuración
 
-`apps/web/.env` (`VITE_*`) y `apps/mobile/.env` (`EXPO_PUBLIC_*`) llevan solo valores **públicos** (URL de Supabase, *publishable key*; la web además la URL de la API). Los secretos (`SUPABASE_ACCESS_TOKEN`, `SUPABASE_SECRET_KEY`…) van en `.env.secret` (gitignored). Ver los `.env.example`.
+Todo el entorno vive en **un solo archivo**: el `.env` de la raíz (gitignored, ya está puesto; no hay archivos `.example`). Docker Compose lo lee solo y reparte lo público a cada app con el prefijo que necesita; `tool/` lo lee para las migraciones.
+
+| Variable | Para qué |
+|---|---|
+| `APP_ENV`, `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY` | Públicas. Compose las pasa a la web (`VITE_*`) y al móvil (`EXPO_PUBLIC_*`) al construir |
+| `QHUB_API_URL`, `QHUB_WS_URL` | Públicas, solo web (el móvil habla con `qhub-proxy`). En producción: la URL de Render (`https://` y `wss://`) |
+| `SUPABASE_PROJECT_REF`, `SUPABASE_ACCESS_TOKEN`, `APP_URLS` | Secretas: solo `tool/` (migraciones, autenticación, despliegue de funciones). **Nunca** llegan a una app |
+| `SMTP_*` (opcional, comentadas) | Correo propio para los correos con tu marca |
+
+Para cambiar algo (por ejemplo la URL de la API al desplegar) edita `.env` y corre `docker compose up -d --build`. La `service_role` de Supabase la inyecta Supabase en las Edge Functions; no vive en ningún archivo del proyecto.
 
 **La pantalla de conectar con Qhub sale solo al crear la cuenta.** Al conectar por primera vez, un administrador deja registrado en la base de datos (`organizaciones.qhub_conectada_en`, función `confirmar_conexion_qhub`) que la conexión ya se hizo; desde entonces **ninguna sesión vuelve a ver esa pantalla**, sin depender de la API ni del navegador. Si en una sesión falta el token y no hay conexión guardada que lo renueve, la app abre igual y muestra un aviso «Falta reconectar con Qhub» con una ventana para escribir la cuenta (se guarda para no pedirla más).
 
@@ -73,11 +81,11 @@ La plataforma sirve a una **persona natural** (cuenta personal: espacio propio, 
 | `recepcion` | Atender la fila. Sin historial, equipo, clientes, avisos ni ajustes |
 | *titular* | Solo en una **cuenta personal**: todo lo del administrador excepto el equipo (no existe) |
 
-El rol nunca viene del cliente; ver [docs/arquitectura.md](docs/arquitectura.md). La API Qhub solo conoce `admin` y `agente`: el resto opera como `agente` y la web limita lo que ven. La matriz vive en `apps/web/src/features/staff/domain/permissions.ts`.
+El rol nunca viene del cliente; ver [docs/arquitectura.md](docs/arquitectura.md). La API Qhub solo conoce `admin` y `agente`: el resto opera como `agente` y la web limita lo que ven. La matriz vive en `apps/web/src/features/staff/permissions.ts`.
 
 ## Recuperación de contraseña y URLs permitidas
 
-La web ofrece «¿Olvidaste tu contraseña?» (el correo trae un enlace a `/restablecer`). Para que esos enlaces funcionen, `python3 -I tool/supabase_auth.py` fija en Supabase la URL del sitio y las redirecciones permitidas (`APP_URLS` en `apps/web/.env.secret`, por defecto `localhost:8080` y `localhost:5173`) y exige contraseñas de 8+ caracteres.
+La web ofrece «¿Olvidaste tu contraseña?» (el correo trae un enlace a `/restablecer`). Para que esos enlaces funcionen, `python3 -I tool/supabase_auth.py` fija en Supabase la URL del sitio y las redirecciones permitidas (`APP_URLS` en `.env.secret`, por defecto `localhost:8080` y `localhost:5173`) y exige contraseñas de 8+ caracteres.
 
 ## Avisos, clientes y bloqueo
 
