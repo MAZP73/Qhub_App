@@ -8,5 +8,6 @@ export * from './env';
 export * from './geo';
 export * from './supabase-failure';
 export * from './queue-prefix';
+export * from './profile';
 export * from './dates';
 export * from './safe-message';

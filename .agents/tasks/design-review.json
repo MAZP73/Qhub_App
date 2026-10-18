@@ -1,0 +1,30 @@
+{
+  "verdict": "APPROVED",
+  "findings": [
+    {
+      "id": 1,
+      "severity": "NIT",
+      "title": "El token bg-overlay ya existe; el diseño lo trata como posible token faltante",
+      "where": "Tarea 3 > Diseño/tokens > Posible token faltante",
+      "problem": "Verificado en apps/mobile/src/shared/ui/kit.tsx:197, ConfirmModal ya usa bg-overlay para el scrim del Modal. El token existe; la incertidumbre del diseño es obsoleta.",
+      "fix": "Afirmar que SelectField reutiliza el token existente bg-overlay (kit.tsx:197) para el scrim, sin inventar color ni condicionar su existencia."
+    },
+    {
+      "id": 2,
+      "severity": "NIT",
+      "title": "Mecanismo para reducir el polling cuando Realtime esta conectado no especificado",
+      "where": "Tarea 1B > useNotices > Fallback",
+      "problem": "refetchInterval viene de useRefreshInterval() (preferencia del usuario), no de una constante local. El diseno describe el comportamiento (apagar polling al conectar) pero no el mecanismo para sobrescribir un valor derivado de la preferencia; deja '300 s'/false ambiguo.",
+      "fix": "Estado local rtStatus alimentado por onStatus; refetchInterval: rtStatus==='connected' ? false : useRefreshInterval(). Al reportar error/closed volver a useRefreshInterval(). Eliminar el '300 s' y usar false como unico valor 'conectado'."
+    },
+    {
+      "id": 3,
+      "severity": "NIT",
+      "title": "Punto de montaje de QhubNotices descrito como 'sesion/organizacion' pero el shell lo gatea por permiso",
+      "where": "Tarea 1A > Archivos > Modificar AppShell.tsx",
+      "problem": "AppShell.tsx:92 renderiza NoticePopups dentro de can(role,'notifications.view'), un permiso de avisos de equipo. Los avisos personales de Qhub dependen de connection.status, no de ese permiso; la ubicacion propuesta y la justificacion no coinciden con el gate real (no es bug porque el hook no abre socket sin conexion Qhub).",
+      "fix": "Fijar explicitamente el montaje: o fuera del gate notifications.view (activacion controlada por el useEffect atado a connection.status), o documentar que se acepta reutilizar ese gate. No dejarlo a criterio del implementador."
+    }
+  ],
+  "reviewDoc": "/home/miguelzambrano/projects/Qhub_App/.worktrees/mejoras-web-movil/.agents/tasks/design-review.md"
+}

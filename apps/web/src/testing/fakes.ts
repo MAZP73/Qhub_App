@@ -199,9 +199,11 @@ export class FakeTicketRepository implements TicketRepository {
 
 export class FakeRealtime implements RealtimeRepository {
   subs = new Set<QueueSubscription>();
+  notificationSubs = new Set<(n: AppNotification) => void>();
   subscribeQueue(_q: string, sub: QueueSubscription) { this.subs.add(sub); sub.onStatus?.('connected'); return () => { this.subs.delete(sub); }; }
-  subscribeNotifications(): () => void { return () => {}; }
+  subscribeNotifications(sub: { onNotification(n: AppNotification): void }): () => void { this.notificationSubs.add(sub.onNotification); return () => { this.notificationSubs.delete(sub.onNotification); }; }
   emit(e: QueueEvent) { this.subs.forEach((s) => s.onEvent(e)); }
+  emitNotification(n: AppNotification) { this.notificationSubs.forEach((cb) => cb(n)); }
 }
 
 export class FakeHealth implements HealthRepository { async ready() { return ok({ supabase: 'ok', rabbitmq: 'ok' }); } }
@@ -214,7 +216,7 @@ export class FakeNotifications implements NotificationRepository {
 export { ApiContext, buildTestSession };
 
 
-import type { NotificationsRepository, StaffNotice } from '@/features/notifications/notifications';
+import type { NotificationsRealtime, NotificationsRepository, StaffNotice } from '@/features/notifications/notifications';
 import type { BlockedInfo, Client, EditPermission, ClientsRepository, ClientTicket } from '@/features/clients/clients';
 import type { AccessInfo, ActivityItem, AssuranceState, MfaEnrollment, MfaFactor, SecurityRepository } from '@/features/security/security';
 
@@ -229,6 +231,17 @@ export class FakeNotices implements NotificationsRepository {
   async markAllRead(): Promise<Result<void>> { this.calls.push('readAll'); this.items = this.items.map((n) => ({ ...n, read: true })); return ok(undefined); }
   async remove(id: string): Promise<Result<void>> { this.calls.push(`remove:${id}`); this.items = this.items.filter((n) => n.id !== id); return ok(undefined); }
   async removeRead(): Promise<Result<void>> { this.calls.push('removeRead'); this.items = this.items.filter((n) => !n.read); return ok(undefined); }
+}
+
+/** Tiempo real de los avisos del equipo (doble de prueba): guarda los handlers y expone `emit()` para disparar un cambio. */
+export class FakeNotificationsRealtime implements NotificationsRealtime {
+  handlers = new Map<string, () => void>();
+  subscribe(orgId: string, { onChange, onStatus }: { onChange: () => void; onStatus: (s: 'connected' | 'error' | 'closed') => void }): () => void {
+    this.handlers.set(orgId, onChange);
+    onStatus('connected');
+    return () => { this.handlers.delete(orgId); };
+  }
+  emit(orgId: string) { this.handlers.get(orgId)?.(); }
 }
 
 export const makeClient = (id: string, o: Partial<Client> = {}): Client => ({

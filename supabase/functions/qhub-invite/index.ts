@@ -4,6 +4,7 @@
 // El correo sale por Supabase Auth: invitación si la persona no tiene cuenta; enlace de acceso si ya la tiene.
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { generatePassword, parseInvite, redirectFor } from "../_shared/invite.ts";
+import { loadKey, sealInitialPassword } from "../_shared/clave.ts";
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -70,8 +71,13 @@ Deno.serve(async (req) => {
     const { data, error } = await q;
     if (error || !data) return json(500, { error: "No pudimos crear la invitación." });
     inv = data;
-    // La persona la verá en la pantalla de la invitación; se borra al aceptar.
-    if (newPassword) await admin.from("claves_iniciales").upsert({ invitacion_id: data.id, clave: newPassword });
+    // La persona la verá en la pantalla de la invitación; se borra al aceptar. Se guarda CIFRADA (nunca en claro).
+    // Sin CLAVE_INICIAL_KEY no se guarda nada: la persona recupera por «Olvidé mi contraseña».
+    if (newPassword) {
+      const sealed = await sealInitialPassword(newPassword, await loadKey((k) => Deno.env.get(k)));
+      if (sealed) await admin.from("claves_iniciales").upsert({ invitacion_id: data.id, clave: JSON.stringify(sealed) });
+      else console.error("qhub-invite: CLAVE_INICIAL_KEY ausente o inválida; no se guarda la clave inicial.");
+    }
   }
 
   // Si se reenvía, se renueva el plazo.

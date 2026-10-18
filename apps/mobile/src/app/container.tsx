@@ -13,6 +13,8 @@ import { SupabaseOrganizationRepository } from '@/features/organizations/supabas
 import type { OrganizationRepository } from '@/features/organizations/organizations';
 import { SupabaseEditRequestRepository } from '@/features/permissions/supabase-edit-request-repository';
 import type { EditRequestRepository } from '@/features/permissions/edit-requests';
+import { SupabaseProfileRepository } from '@/features/profile/supabase-profile-repository';
+import type { ProfileRepository } from '@/features/profile/profile';
 import { LoadActiveTickets } from '@/features/tickets/active-tickets';
 import type { AppEnv } from './env';
 import { AppSession } from './session';
@@ -20,7 +22,7 @@ import { AppSession } from './session';
 /** Raíz de composición. En tests se sustituye por fakes. */
 export interface Container {
   env: AppEnv; users: UserRepository; organizations: OrganizationRepository; history: HistoryRepository; gateway: QhubGateway;
-  loadActiveTickets: LoadActiveTickets; session: AppSession; editRequests: EditRequestRepository;
+  profiles: ProfileRepository; loadActiveTickets: LoadActiveTickets; session: AppSession; editRequests: EditRequestRepository;
 }
 
 export function buildContainer(env: AppEnv): Container {
@@ -29,7 +31,8 @@ export function buildContainer(env: AppEnv): Container {
   const organizations = new SupabaseOrganizationRepository(sb);
   const history = new SupabaseHistoryRepository(sb);
   const gateway = new ProxyQhubGateway(supabaseProxyInvoker(sb));
-  return { env, users, organizations, history, gateway, loadActiveTickets: new LoadActiveTickets(history, gateway, organizations), session: new AppSession(users), editRequests: new SupabaseEditRequestRepository(sb) };
+  const profiles = new SupabaseProfileRepository(sb);
+  return { env, users, organizations, history, gateway, profiles, loadActiveTickets: new LoadActiveTickets(history, gateway, organizations), session: new AppSession(users), editRequests: new SupabaseEditRequestRepository(sb) };
 }
 
 const Ctx = createContext<Container | null>(null);

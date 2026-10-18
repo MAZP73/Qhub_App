@@ -8,6 +8,11 @@ export interface StaffNotice {
   id: string; kind: NoticeKind; title: string; message: string; route: string | null; read: boolean; createdAt: Date;
 }
 
+/** Escucha en tiempo real los cambios de `notificaciones_staff` de una organización (Supabase Realtime). */
+export interface NotificationsRealtime {
+  subscribe(orgId: string, handlers: { onChange: () => void; onStatus: (s: 'connected' | 'error' | 'closed') => void }): () => void;
+}
+
 export interface NotificationsRepository {
   list(orgId: string, opts?: { unreadOnly?: boolean; limit?: number }): Promise<Result<StaffNotice[]>>;
   unreadCount(orgId: string): Promise<Result<number>>;

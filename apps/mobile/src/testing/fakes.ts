@@ -10,6 +10,8 @@ import type { QhubGateway } from '@/features/gateway/gateway';
 import type { HistoryEntry, HistoryRepository } from '@/features/history/history';
 import type { OrganizationRepository, OrganizationSummary } from '@/features/organizations/organizations';
 import type { EditRequest, EditRequestRepository } from '@/features/permissions/edit-requests';
+import { EMPTY_PROFILE, type Profile } from '@qhub/core';
+import type { ProfileRepository } from '@/features/profile/profile';
 import { LoadActiveTickets } from '@/features/tickets/active-tickets';
 
 export const testEnv: AppEnv = { appEnv: 'production', supabaseUrl: 'https://x.supabase.co', supabaseKey: 'sb_publishable_test' };
@@ -105,6 +107,15 @@ export class FakeNotifications implements NotificationRepository {
   async delete(): Promise<Result<void>> { return ok(undefined); }
 }
 
+export class FakeProfileRepository implements ProfileRepository {
+  calls: string[] = [];
+  updateFailure: Failure | null = null;
+  constructor(public data: Profile = { ...EMPTY_PROFILE, firstName: 'Camila', lastName: 'Ríos', phone: '+57 3001112233', country: 'CO', city: 'Bogotá', timeZone: 'America/Bogota' }, public managed = false) {}
+  async get(): Promise<Result<Profile>> { return ok({ ...this.data }); }
+  async update(p: Profile): Promise<Result<Profile>> { this.calls.push(`update:${p.firstName}:${p.city}`); if (this.updateFailure) return err(this.updateFailure); this.data = { ...p }; return ok({ ...p }); }
+  async managementStatus(): Promise<Result<boolean>> { return ok(this.managed); }
+}
+
 export class FakeGateway implements QhubGateway {
   constructor(public queueRepo = new FakeQueues(), public ticketRepo = new FakeTickets(), public notificationRepo = new FakeNotifications()) {}
   queues() { return this.queueRepo; }
@@ -119,12 +130,13 @@ export class FakeEditRequests implements EditRequestRepository {
   async respond(id: string, approve: boolean): Promise<Result<void>> { this.calls.push(`${approve ? 'approve' : 'reject'}:${id}`); this.items = this.items.filter((e) => e.id !== id); return ok(undefined); }
 }
 
-export interface TestContainer extends Container { fakes: { users: FakeUserRepository; orgs: FakeOrganizationRepository; history: FakeHistoryRepository; gateway: FakeGateway; editRequests: FakeEditRequests } }
+export interface TestContainer extends Container { fakes: { users: FakeUserRepository; orgs: FakeOrganizationRepository; history: FakeHistoryRepository; gateway: FakeGateway; editRequests: FakeEditRequests; profiles: FakeProfileRepository } }
 export function makeContainer(o: Partial<TestContainer['fakes']> = {}): TestContainer {
   const users = o.users ?? new FakeUserRepository();
   const orgs = o.orgs ?? new FakeOrganizationRepository();
   const history = o.history ?? new FakeHistoryRepository();
   const gateway = o.gateway ?? new FakeGateway();
   const editRequests = o.editRequests ?? new FakeEditRequests();
-  return { env: testEnv, users, organizations: orgs, history, gateway, loadActiveTickets: new LoadActiveTickets(history, gateway, orgs), session: new AppSession(users), editRequests, fakes: { users, orgs, history, gateway, editRequests } };
+  const profiles = o.profiles ?? new FakeProfileRepository();
+  return { env: testEnv, users, organizations: orgs, history, gateway, profiles, loadActiveTickets: new LoadActiveTickets(history, gateway, orgs), session: new AppSession(users), editRequests, fakes: { users, orgs, history, gateway, editRequests, profiles } };
 }

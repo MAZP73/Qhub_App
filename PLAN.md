@@ -29,6 +29,9 @@
 - [x] **Clientes**: solo eliminar; editar sus datos exige su permiso (el cliente aprueba o rechaza desde Avisos del móvil)
 - [x] **Móvil como red de organizaciones**: buscar por nombre o ID (QH-XXXXXX), vincularse (varias a la vez), ver colas y sacar turno solo vinculado; el cliente aparece en la plataforma
 - [x] **Entorno central**: un solo `.env` en la raíz; Docker lo reparte a web y móvil; `tool/build-apk.sh` genera el APK
+- [x] **Notificaciones en tiempo real (web)**: avisos personales de Qhub por `WS /ws/notificaciones` (hook `useQhubNotifications` + `QhubNotices` montado en el shell, se suscribe solo con conexión Qhub activa, toast por aviso, cierre 4401 no reintenta) y avisos del equipo (`notificaciones_staff`) por Supabase Realtime (`postgres_changes` acotado a la organización) integrado con la caché de TanStack Query en `useNotices`/`NoticePopups`, con el sondeo como respaldo; migración `20261025000001_realtime_avisos_staff.sql` añade la tabla a la publicación `supabase_realtime` (idempotente, respeta la RLS existente). Fakes `FakeRealtime.subscribeNotifications`/`FakeNotificationsRealtime`; `workspace.test.tsx` sin regresión
+- [x] **Clave inicial de la invitación cifrada en reposo (AES-GCM)**: la escribe cifrada `qhub-invite` (sobre `{ v, iv, d }` en base64) con una clave del servidor `CLAVE_INICIAL_KEY` que nunca toca la base; la lee y descifra la nueva Edge Function `qhub-clave` (autoriza por el correo invitado, `Cache-Control: no-store`). Helpers puros en `supabase/functions/_shared/crypto.ts`/`clave.ts` con tests Deno; migración `20261025000002_clave_inicial_cifrada.sql` elimina `ver_clave_inicial`, crea `clave_inicial_cifrada` (solo `service_role`) y documenta la columna. El cliente (`SupabaseStaffRepository.initialPassword`) invoca `qhub-clave` vía `invokeFunction`; `InvitationPage` sin cambios. Sin la clave, la invitación se envía igual y no se guarda texto plano
+- [x] **Paridad del perfil móvil + selectores país/ciudad**: `ProfileScreen` móvil edita los datos personales (identidad, contacto, ubicación) como el web, con `SelectField` (lista buscable, solo tokens NativeWind) para país → ciudad → zona horaria y prefijo telefónico, reutilizando la geografía y la validación de `@qhub/core` (sin duplicar); respeta los límites de cuenta gestionada (campos del administrador bloqueados cuando ya están completos). Clean Architecture: dominio `profile.ts`, datos `supabase-profile-repository.ts` (incluye `managementStatus`), presentación `useProfileForm`/pantalla; `FakeProfileRepository` y tests de dominio y pantalla
 
 ## Pendiente (requiere decisión o acción tuya)
 
@@ -40,7 +43,5 @@
 - [ ] **Tiempo real y push en el móvil**: requieren cambios en la API → **plan aparte** (Regla #2)
 - [ ] Mover la contraseña de Qhub de `organizacion_credenciales` a Supabase Vault
 - [ ] Activar `ENFORCE_TURN_OWNERSHIP=true` en el despliegue de la API cuando la app móvil esté en producción
-- [ ] Revisión final del móvil: perfil (misma edición que la web, con los límites de gestionado) y selectores de país/ciudad
-- [ ] Contraseña inicial de invitaciones (`claves_iniciales`): hoy en texto hasta que se acepta; cifrarla o moverla a Vault
 - [ ] Revisar las pantallas autenticadas con datos reales de Qhub (se revisaron con respuestas simuladas)
 - [ ] IA (estimación avanzada, picos, asistente): **no iniciada, por indicación del usuario**

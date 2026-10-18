@@ -67,6 +67,15 @@ docker run --rm -e SUPABASE_ACCESS_TOKEN -v "$PWD:/work" -w /work node:22-slim \
   npx -y supabase@latest secrets set QHUB_API_BASE_URL=https://api.tu-dominio.com --project-ref <ref>
 ```
 
+La clave inicial de una invitación se guarda **cifrada** en reposo (AES-GCM). Las funciones `qhub-invite` (cifra) y `qhub-clave` (descifra) necesitan el secret `CLAVE_INICIAL_KEY`: una clave AES-256 en base64 (32 bytes). Genérala y fíjala una vez (nunca se commitea su valor):
+
+```bash
+docker run --rm -e SUPABASE_ACCESS_TOKEN -v "$PWD:/work" -w /work node:22-slim \
+  npx -y supabase@latest secrets set CLAVE_INICIAL_KEY=$(openssl rand -base64 32) --project-ref <ref>
+```
+
+Sin ese secret la invitación se envía igual, pero la clave inicial no se guarda (la persona recupera por «Olvidé mi contraseña»).
+
 ## Tipos de cuenta y roles
 
 La plataforma sirve a una **persona natural** (cuenta personal: espacio propio, hasta 3 colas, sin equipo; su rol es *titular*) o a una **organización** (empresa: hasta 6 colas, equipo, invitaciones y clientes). Se elige al crear la cuenta y no se cambia; coincide con los dos tipos de cuenta de la API Qhub. Roles de una organización:

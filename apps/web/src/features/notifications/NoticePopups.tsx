@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { unwrap } from '@qhub/core';
 import { useToast } from '@/shared/ui';
 import { useContainer, useSession } from '@/app/container';
@@ -14,10 +14,11 @@ const POLL_MS = 10_000;
  * y la persona lo permitió, como notificación del navegador. Los avisos que ya existían al abrir no se muestran (están en la campana).
  */
 export function NoticePopups() {
-  const { staffNotices } = useContainer();
+  const { staffNotices, staffNoticesRealtime } = useContainer();
   const { session } = useSession();
   const toast = useToast();
   const nav = useNavigate();
+  const qc = useQueryClient();
   const orgId = session.membership?.organization.id;
   const role = session.membership?.role;
   const userId = session.user?.id;
@@ -25,6 +26,11 @@ export function NoticePopups() {
   const q = useQuery({ queryKey: ['notice-popups', orgId, userId], enabled: !!orgId, refetchInterval: POLL_MS, queryFn: async () => unwrap(await staffNotices.list(orgId!, { unreadOnly: true, limit: 20 })) });
 
   useEffect(() => { seen.current = null; }, [orgId, userId]);          // otra organización u otra cuenta: nueva línea base
+  // Tiempo real: refresca al instante; el sondeo de 10 s queda como respaldo.
+  useEffect(() => {
+    if (!orgId) return;
+    return staffNoticesRealtime.subscribe(orgId, { onChange: () => { void qc.invalidateQueries({ queryKey: ['notice-popups', orgId, userId] }); }, onStatus: () => {} });
+  }, [orgId, userId, staffNoticesRealtime, qc]);
   useEffect(() => {
     if (!q.data) return;
     if (seen.current === null) { seen.current = new Set(q.data.map((n) => n.id)); return; }

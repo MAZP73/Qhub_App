@@ -9,7 +9,8 @@ import { SessionTokenStore } from '@/features/qhub/session-token-store';
 import { SupabaseStaffRepository } from '@/features/staff/supabase-staff-repository';
 import type { StaffRepository } from '@/features/staff';
 import { SupabaseNotificationsRepository } from '@/features/notifications/supabase-notifications-repository';
-import type { NotificationsRepository } from '@/features/notifications/notifications';
+import { SupabaseNotificationsRealtime } from '@/features/notifications/supabase-notifications-realtime';
+import type { NotificationsRealtime, NotificationsRepository } from '@/features/notifications/notifications';
 import { SupabaseClientsRepository } from '@/features/clients/supabase-clients-repository';
 import type { ClientsRepository } from '@/features/clients/clients';
 import { SupabaseQhubLinkRepository } from '@/features/qhub/supabase-qhub-link-repository';
@@ -26,6 +27,8 @@ export interface Container {
   staff: StaffRepository;
   /** Avisos del equipo (Supabase). No confundir con `notifications`, que son los avisos de la API Qhub. */
   staffNotices: NotificationsRepository;
+  /** Tiempo real de los avisos del equipo (Supabase Realtime). */
+  staffNoticesRealtime: NotificationsRealtime;
   clients: ClientsRepository;
   security: SecurityRepository;
   /** Conexión de la organización con Qhub guardada en el servidor (conectar una vez, publicar). */
@@ -52,7 +55,7 @@ export function buildContainer(env: AppEnv): Container {
   const qhubLink = new SupabaseQhubLinkRepository(sb);
   return {
     env, staff, context, auth, tokenStore,
-    staffNotices: new SupabaseNotificationsRepository(sb), clients: new SupabaseClientsRepository(sb), security, qhubLink,
+    staffNotices: new SupabaseNotificationsRepository(sb), staffNoticesRealtime: new SupabaseNotificationsRealtime(sb), clients: new SupabaseClientsRepository(sb), security, qhubLink,
     queues: new QueueRepositoryImpl(transport),
     tickets: new TicketRepositoryImpl(transport),
     notifications: new NotificationRepositoryImpl(transport),

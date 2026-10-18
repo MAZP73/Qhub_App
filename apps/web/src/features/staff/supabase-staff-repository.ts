@@ -196,8 +196,13 @@ export class SupabaseStaffRepository implements StaffRepository {
   cancelInvitation(invitationId: string) {
     return this.run(async () => { await this.q(this.sb.from('invitaciones').delete().eq('id', invitationId).is('aceptada_en', null) as unknown as PromiseLike<{ data: unknown; error: unknown }>); });
   }
-  initialPassword(token: string) {
-    return this.run(async () => { const v = await this.q(this.sb.rpc('ver_clave_inicial', { p_token: token.trim() }) as unknown as PromiseLike<{ data: unknown; error: unknown }>); return typeof v === 'string' && v ? v : null; });
+  initialPassword(token: string): Promise<Result<string | null>> {
+    // La clave vive cifrada en reposo; la Edge Function `qhub-clave` autoriza y descifra. `200 { clave: null }` -> ok(null).
+    return this.run(async () => {
+      const r = await invokeFunction<{ clave: string | null }>(this.sb, 'qhub-clave', { token: token.trim() });
+      if (!r.ok) throw r.failure;
+      return r.value?.clave ?? null;
+    });
   }
   previewInvitation(token: string) {
     return this.run(async (): Promise<InvitationPreview> => {

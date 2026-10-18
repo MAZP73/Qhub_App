@@ -11,6 +11,7 @@ import { pushRecentPage } from './recent-pages';
 import { HeaderSearch } from './HeaderSearch';
 import { ReconnectBanner } from '@/features/qhub/ReconnectBanner';
 import { NoticePopups } from '@/features/notifications/NoticePopups';
+import { QhubNotices } from '@/features/notifications/QhubNotices';
 import { NotificationBell } from './NotificationBell';
 
 const GROUPS = { operacion: 'Operación', organizacion: 'Organización', cuenta: 'Cuenta' } as const;
@@ -113,6 +114,7 @@ export function AppShell() {
         </div>
         <main id="contenido" ref={main} tabIndex={-1} className="min-w-0 overflow-auto bg-background p-4 outline-none sm:p-6 md:p-8 print:overflow-visible print:p-0">
           <ReconnectBanner />
+          <QhubNotices />
           <Outlet />
         </main>
       </div>
