@@ -1,45 +1,67 @@
 name: qhub_app
 
-x-flutter: &flutter
+x-node: &node
+  build: { context: ., dockerfile: docker/Dockerfile.node }
+  image: qhub_app/node
   working_dir: /workspace
+  user: "${UID:-1000}:${GID:-1000}"
+  environment:
+    HOME: /tmp/home
+    npm_config_cache: /workspace/.npm-cache
   volumes:
     - .:/workspace
-    - pub-cache:/pub-cache
-    - gradle-cache:/root/.gradle
-  environment:
-    PUB_CACHE: /pub-cache
 
 services:
-  tooling:                     # analyze · test · pub get · build_runner
-    <<: *flutter
-    build: { context: ., dockerfile: docker/Dockerfile.tooling }
-    image: qhub_app/tooling
+  node:                        # npm install · typecheck · test · build
+    <<: *node
     profiles: [tools]
     command: ["bash"]
 
-  build-linux:                 # binario del escritorio
-    <<: *flutter
-    build: { context: ., dockerfile: docker/Dockerfile.linux }
-    image: qhub_app/build-linux
-    profiles: [build]
-    working_dir: /workspace/apps/admin_desktop
-    command: ["bash", "-lc", "flutter pub get && flutter build linux --release"]
+  web:                         # `docker compose up -d --build` → http://localhost:8080 con recarga en caliente: editas un archivo y se ve al instante
+    <<: *node
+    working_dir: /workspace/apps/web
+    restart: unless-stopped
+    ports: ["127.0.0.1:8080:8080"]
+    command: ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "8080", "--strictPort"]
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8080/').then((r)=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
 
-  build-android:               # APK del móvil
-    <<: *flutter
-    build: { context: ., dockerfile: docker/Dockerfile.android }
-    image: qhub_app/build-android
-    profiles: [build]
-    working_dir: /workspace/apps/mobile
-    command: ["bash", "-lc", "yes | flutter doctor --android-licenses >/dev/null 2>&1; flutter pub get && flutter build apk --release"]
+  web-prod:                    # build de producción servido con nginx (para publicar): `docker compose --profile prod up -d --build web-prod`
+    build: { context: ., dockerfile: docker/Dockerfile.web }
+    image: qhub_app/web
+    profiles: [prod]
+    ports: ["127.0.0.1:8081:80"]
 
-  qhub-api:                    # API local (usa el compose de su proyecto, solo lectura)
+  qhub-api:                    # API local SIN credenciales reales: arranca, pero no opera
     build: { context: /home/miguelzambrano/projects/Qhub/qhub-api, dockerfile: dockerfile }
     image: qhub_app/qhub-api
     profiles: [local-api]
-    env_file: [/home/miguelzambrano/projects/Qhub/qhub-api/.env]
+    environment:
+      APP_ENV: development
+      SUPABASE_URL: ""
+      SUPABASE_KEY: ""
+      RABBITMQ_URL: ""
+      JWT_SECRET_KEY: "local-dev-secret-local-dev-secret-0123456789"
+      ADMIN_API_KEY: "local-dev-admin-key-local-dev-admin-key-01"
+      CORS_ORIGINS: "*"
     ports: ["127.0.0.1:8000:8000"]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/')"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
 
-volumes:
-  pub-cache:
-  gradle-cache:
+  contract-tests:              # integración del cliente contra la API real en contenedor
+    <<: *node
+    profiles: [local-api]
+    depends_on:
+      qhub-api: { condition: service_healthy }
+    environment:
+      HOME: /tmp/home
+      npm_config_cache: /workspace/.npm-cache
+      QHUB_API_URL: http://qhub-api:8000
+    command: ["bash", "-lc", "npm run test:integration -w @qhub/api-client"]
+

@@ -1,0 +1,3 @@
+tags:
+  integration:
+    description: Requieren la API corriendo (QHUB_API_URL). Ver `docker compose --profile local-api run contract-tests`.

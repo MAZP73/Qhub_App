@@ -1,0 +1,16 @@
+project_id = "qhub-app"
+
+[functions.qhub-proxy]
+verify_jwt = true
+
+[functions.qhub-link]
+verify_jwt = true
+
+[functions.qhub-token]
+verify_jwt = true
+
+[functions.qhub-invite]
+verify_jwt = true
+
+[functions.qhub-recover]
+verify_jwt = false

@@ -1,0 +1,32 @@
+{
+  "expo": {
+    "name": "Qhub",
+    "slug": "qhub",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "scheme": "qhub",
+    "userInterfaceStyle": "automatic",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0e1330"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.qhub.app"
+    },
+    "android": {
+      "package": "com.qhub.app",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#3b4eff"
+      }
+    },
+    "plugins": [
+      "expo-font",
+      "expo-splash-screen",
+      "expo-status-bar"
+    ]
+  }
+}

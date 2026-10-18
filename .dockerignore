@@ -1,0 +1,8 @@
+**/node_modules
+.npm-cache
+**/dist
+**/.expo
+**/.env
+!apps/web/.env
+**/.env.secret
+_archive
