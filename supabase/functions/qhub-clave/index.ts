@@ -1,7 +1,10 @@
-// Lee la clave inicial cifrada de una invitación y la descifra una sola vez para que la persona la copie.
-// Autoriza por el correo invitado (misma condición que la SQL) y descifra con CLAVE_INICIAL_KEY (clave del servidor).
+// Lee la clave inicial cifrada y la descifra con CLAVE_INICIAL_KEY (clave del servidor). Dos ramas:
+// - invitado: { token } autoriza por el correo invitado (misma condición que la SQL) para verla una sola vez;
+// - admin: { orgId, userId } deja al administrador de la organización ver la clave asignada a un miembro de su equipo.
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { loadKey, readInitialPassword } from "../_shared/clave.ts";
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -23,10 +26,18 @@ Deno.serve(async (req) => {
 
   const b = await req.json().catch(() => null) as Record<string, unknown> | null;
   const token = typeof b?.token === "string" ? b.token.trim() : "";
-  if (!token) return json(400, { error: "Revisa los datos." });
+  const orgId = typeof b?.orgId === "string" ? b.orgId.trim() : "";
+  const userId = typeof b?.userId === "string" ? b.userId.trim() : "";
 
   const admin = createClient(url, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
-  const { data: sealed, error } = await admin.rpc("clave_inicial_cifrada", { p_token: token });
+  let sealed: unknown, error: unknown;
+  if (token) {
+    ({ data: sealed, error } = await admin.rpc("clave_inicial_cifrada", { p_token: token }));
+  } else if (UUID.test(orgId) && UUID.test(userId)) {
+    ({ data: sealed, error } = await admin.rpc("clave_inicial_de_miembro", { p_org: orgId, p_usuario: userId }));
+  } else {
+    return json(400, { error: "Revisa los datos." });
+  }
   if (error) { console.error("qhub-clave: fallo al leer la clave cifrada", error); return json(500, { error: "No pudimos leer la clave." }); }
 
   const r = await readInitialPassword(typeof sealed === "string" && sealed ? sealed : null, await loadKey((k) => Deno.env.get(k)));
