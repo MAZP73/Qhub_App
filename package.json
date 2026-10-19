@@ -4,7 +4,7 @@
   "version": "0.1.0",
   "workspaces": [
     "packages/*",
-    "apps/*"
+    "apps/mobile"
   ],
   "scripts": {
     "typecheck": "npm run typecheck --workspaces --if-present",

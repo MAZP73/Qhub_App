@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# Verifica TODO el proyecto dentro de contenedores: tipos, tests, builds, política de Edge Functions,
+# Verifica TODO el móvil dentro de contenedores: tipos, tests, bundle, política de Edge Functions,
 # contrato contra la API real en un contenedor y seguridad de la base (RLS).
-# Uso:  tool/verify.sh            (todo)
-#       tool/verify.sh --web-image   (además construye la imagen de producción de la web con nginx)
+# (La plataforma web vive en un repo aparte: Qhub_Web.)
+# Uso:  tool/verify.sh
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -18,11 +18,8 @@ $NODE 'npm run generate -w @qhub/design'
 step "Tipos (TypeScript estricto) en todos los paquetes y apps"
 $NODE 'npm run typecheck'
 
-step "Tests: core · api-client · design · web · móvil"
+step "Tests: core · api-client · design · móvil"
 $NODE 'npm test'
-
-step "Build de la plataforma web"
-$NODE 'npm run build -w @qhub/web 2>&1 | grep -E "built|error"'
 
 step "Bundle de la app móvil (Metro + NativeWind, Android)"
 $NODE 'cd apps/mobile && set -a && . ../../.env && set +a && export EXPO_PUBLIC_APP_ENV=$APP_ENV EXPO_PUBLIC_SUPABASE_URL=$SUPABASE_URL EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY=$SUPABASE_PUBLISHABLE_KEY && CI=1 npx expo export --platform android --output-dir /tmp/export 2>&1 | grep -E "hbc|Exported|rror"'
@@ -57,11 +54,6 @@ fi
 if [[ -f .env ]]; then
   step "Seguridad de la base (RLS) — transacción que se deshace"
   python3 -I tool/supabase_sql.py supabase/tests/rls_test.sql || true
-fi
-
-if [[ "${1:-}" == "--web-image" ]]; then
-  step "Imágenes de producción (web y móvil)"
-  docker compose build web mobile
 fi
 
 printf '\n\033[32m✔ Verificación completa\033[0m\n'

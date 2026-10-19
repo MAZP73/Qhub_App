@@ -1,8 +1,10 @@
 # Qhub App — CLAUDE.md
 
-Monorepo TypeScript con las dos aplicaciones que consumen la API Qhub (`/home/miguelzambrano/projects/Qhub`):
+> **La plataforma web vive ahora en un repo aparte (`../Qhub_Web`, se despliega en Vercel).** Este repo quedó solo con la app móvil, los paquetes compartidos, `supabase/` y `tool/`. Lo que sigue menciona `apps/web` como contexto del producto, pero su código ya no está aquí.
 
-- **Plataforma web (`apps/web`)** — React + Vite + TypeScript + Tailwind. Panel de administración de cada organización: colas, horarios, fila en vivo, atender turnos, historial, equipo.
+Aplicaciones que consumen la API Qhub (`/home/miguelzambrano/projects/Qhub`):
+
+- **Plataforma web (`apps/web`, ahora en `../Qhub_Web`)** — React + Vite + TypeScript + Tailwind. Panel de administración de cada organización: colas, horarios, fila en vivo, atender turnos, historial, equipo.
 - **App móvil (`apps/mobile`)** — React Native (Expo) + TypeScript + NativeWind (Tailwind). Público: explorar organizaciones, sacar o reservar turno, ver posición, avisos.
 
 Cada una usa el mismo proyecto Supabase `Qhub_APP` (login único; el rol decide qué ve cada app). El plan está en [PLAN.md](PLAN.md).

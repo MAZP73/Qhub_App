@@ -1,12 +1,6 @@
 name: qhub_app
 
-# Todo el entorno vive en el `.env` de la raíz (compose lo lee solo). Aquí se reparte a cada app con el prefijo que necesita.
-x-web-env: &web-env
-  VITE_APP_ENV: ${APP_ENV:?falta APP_ENV en .env}
-  VITE_QHUB_API_BASE_URL: ${QHUB_API_URL:?falta QHUB_API_URL en .env}
-  VITE_QHUB_WS_BASE_URL: ${QHUB_WS_URL:?falta QHUB_WS_URL en .env}
-  VITE_SUPABASE_URL: ${SUPABASE_URL:?falta SUPABASE_URL en .env}
-  VITE_SUPABASE_PUBLISHABLE_KEY: ${SUPABASE_PUBLISHABLE_KEY:?falta SUPABASE_PUBLISHABLE_KEY en .env}
+# Todo el entorno vive en el `.env` de la raíz (compose lo lee solo). Aquí se reparte al móvil con el prefijo que necesita.
 x-mobile-env: &mobile-env
   EXPO_PUBLIC_APP_ENV: ${APP_ENV:?falta APP_ENV en .env}
   EXPO_PUBLIC_SUPABASE_URL: ${SUPABASE_URL:?falta SUPABASE_URL en .env}
@@ -28,17 +22,6 @@ services:
     <<: *node
     profiles: [tools]
     command: ["bash"]
-
-  web:                         # `docker compose up -d --build` → plataforma web de producción (nginx) en http://localhost:8080
-    build: { context: ., dockerfile: docker/Dockerfile.web, args: *web-env }
-    image: qhub_app/web
-    restart: unless-stopped
-    ports: ["127.0.0.1:8080:80"]
-    healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://127.0.0.1/"]
-      interval: 15s
-      timeout: 5s
-      retries: 6
 
   android:                     # emulador de Android en el PC, con la pantalla en el navegador (http://localhost:6080). Se usa con `tool/emulator.sh`
     image: budtmo/docker-android:emulator_13.0

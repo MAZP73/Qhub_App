@@ -1,5 +1,7 @@
 # Qhub App
 
+> **La plataforma web se movió a su propio repo: `../Qhub_Web`** (se despliega en Vercel por separado). Este repo (`Qhub_App`) contiene ahora **solo la app móvil** más los paquetes compartidos, `supabase/` y las herramientas. Las referencias a `apps/web` de abajo quedan como contexto histórico del producto.
+
 Una **plataforma web** (React + TypeScript) para administrar cada organización y una **app móvil** (React Native) para el público, ambas sobre la [API Qhub](../Qhub). Clean Architecture, estilos con **Tailwind** (web: Tailwind v4; móvil: NativeWind) y todo — tipos, tests, builds, API local — con **Docker Compose**.
 
 | | Web `apps/web` | Móvil `apps/mobile` |

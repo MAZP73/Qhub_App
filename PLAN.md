@@ -1,5 +1,7 @@
 # Qhub App — Plan y estado
 
+> Nota: la **plataforma web** se separó a su propio repo (`../Qhub_Web`, despliegue en Vercel). Este repo quedó con la app móvil. Lo de abajo describe el producto completo (web + móvil) como contexto.
+
 Última actualización: 2026-10-18. Stack: **plataforma web (React + Vite + TypeScript + Tailwind)** y **app móvil (React Native + Expo + NativeWind)**, Clean Architecture, Docker Compose. **Sin IA**, por indicación del usuario.
 
 ## Hecho y verificado (`tool/verify.sh` → exit 0)
