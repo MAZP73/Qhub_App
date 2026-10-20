@@ -22,7 +22,14 @@ step "Tests: core · api-client · design · móvil"
 $NODE 'npm test'
 
 step "Bundle de la app móvil (Metro + NativeWind, Android)"
-$NODE 'cd apps/mobile && set -a && . ../../.env && set +a && export EXPO_PUBLIC_APP_ENV=$APP_ENV EXPO_PUBLIC_SUPABASE_URL=$SUPABASE_URL EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY=$SUPABASE_PUBLISHABLE_KEY && CI=1 npx expo export --platform android --output-dir /tmp/export 2>&1 | grep -E "hbc|Exported|rror"'
+# El .env puede ser un symlink (p. ej. en un worktree) que no resuelve dentro del contenedor:
+# se lee en el host (donde el symlink sí resuelve) y se inyectan las variables EXPO_PUBLIC_*.
+set -a; . "$(readlink -f .env)"; set +a
+docker compose --profile tools run --rm -T \
+  -e EXPO_PUBLIC_APP_ENV="$APP_ENV" \
+  -e EXPO_PUBLIC_SUPABASE_URL="$SUPABASE_URL" \
+  -e EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY="$SUPABASE_PUBLISHABLE_KEY" \
+  node bash -lc 'cd apps/mobile && CI=1 npx expo export --platform android --output-dir /tmp/export 2>&1 | grep -E "hbc|Exported|rror"'
 
 step "Edge Functions (política del proxy)"
 # jsr.io a veces no responde desde Docker: se reintenta antes de dar el paso por fallido

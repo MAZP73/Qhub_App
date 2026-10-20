@@ -163,6 +163,22 @@ export function ListRow({ leading, title, subtitles = [], trailing, onPress, hig
   return onPress ? <Pressable accessibilityRole="button" onPress={onPress}>{body}</Pressable> : body;
 }
 
+/** Contenedor de tarjeta: superficie layer-01 con borde sutil y el radio máximo permitido. No interactivo. */
+export function Card({ children }: { children?: ReactNode }) {
+  return <View className="rounded-md border border-border-subtle bg-layer-01 p-4">{children}</View>;
+}
+
+/** Grupo con título (h4), ayuda opcional y columna de hijos espaciada con tokens. No interactivo. */
+export function Section({ title, children, hint }: { title: string; children?: ReactNode; hint?: string }) {
+  return (
+    <View className="gap-3">
+      <Txt variant="h4">{title}</Txt>
+      {hint ? <Txt variant="caption" color="textSecondary">{hint}</Txt> : null}
+      <View className="gap-3">{children}</View>
+    </View>
+  );
+}
+
 export function Tabs({ labels, index, onChange }: { labels: readonly string[]; index: number; onChange: (i: number) => void }) {
   return (
     <ScrollView horizontal showsHorizontalScrollIndicator={false} className="grow-0 border-b border-border-subtle">
