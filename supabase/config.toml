@@ -14,3 +14,7 @@ verify_jwt = true
 
 [functions.qhub-recover]
 verify_jwt = false
+
+# Todos los correos de Auth salen por Brevo (función auth-email). Se activa además en el panel: Authentication → Hooks → Send Email.
+[functions.auth-email]
+verify_jwt = false
