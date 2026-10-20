@@ -76,6 +76,22 @@ npm run android | ios    # opcional: emulador/simulador propio, si ya lo tienes 
 `tool/start.sh` carga el `.env` central y reparte lo público como `EXPO_PUBLIC_*`.
 Para publicar en tiendas más adelante se usa **EAS Build** (en la nube de Expo); no hace falta nada de eso para desarrollar.
 
+## Publicar la app (EAS Build)
+
+Para que cualquiera la instale sin Expo Go (la API y la web ya están publicadas en Render y Vercel):
+
+```bash
+cd apps/mobile
+npx expo login && npx eas-cli init          # una sola vez: crea el proyecto en Expo
+npx eas-cli env:create --name EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY --value <clave publishable> --visibility sensitive --environment preview --environment production
+cd ../.. && npm run build:apk               # APK con link para instalar (Android)
+npm run build:android                       # AAB para Play Store
+npm run build:ios                           # requiere cuenta Apple Developer
+```
+
+`eas.json` define los perfiles `preview` (APK) y `production`. Antes de publicar, pon en `APP_URLS` del `.env`
+la URL de la web en Vercel y el esquema `qhub://`, y corre `python3 -I tool/supabase_auth.py`.
+
 ## Verificación (Docker)
 
 ```bash

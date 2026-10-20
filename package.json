@@ -14,7 +14,10 @@
     "start": "bash tool/start.sh",
     "start:tunnel": "bash tool/start.sh --tunnel",
     "android": "bash tool/start.sh --android",
-    "ios": "bash tool/start.sh --ios"
+    "ios": "bash tool/start.sh --ios",
+    "build:apk": "cd apps/mobile && npx eas-cli build -p android --profile preview",
+    "build:android": "cd apps/mobile && npx eas-cli build -p android --profile production",
+    "build:ios": "cd apps/mobile && npx eas-cli build -p ios --profile production"
   },
   "engines": {
     "node": ">=22"

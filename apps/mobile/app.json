@@ -27,6 +27,12 @@
       "expo-font",
       "expo-splash-screen",
       "expo-status-bar"
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "dc7a8386-2fda-4cbf-a350-93bd1fb7c4de"
+      }
+    },
+    "owner": "qhub_app"
   }
 }
