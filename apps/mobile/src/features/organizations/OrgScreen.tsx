@@ -3,7 +3,7 @@ import { useNavigation, useRoute, type RouteProp } from '@react-navigation/nativ
 import { useQueryClient } from '@tanstack/react-query';
 import { defaultQueuePrefix, friendlyError } from '@qhub/core';
 import { useState } from 'react';
-import { AppBar, Button, ConfirmModal, EmptyState, Icon, IconButton, ListRow, OrgMark, Screen, Skeleton, Txt, useToast } from '@/shared/ui/kit';
+import { AppBar, Button, Card, ConfirmModal, EmptyState, Icon, IconButton, ListRow, OrgMark, Screen, Skeleton, Txt, useToast } from '@/shared/ui/kit';
 import { useContainer } from '@/app/container';
 import { useLinkedIds, useOrg, useOrgPrefixes, useOrgQueues, useQueueState } from '@/app/hooks';
 import { orgLocation, orgMark } from './organizations';
@@ -48,10 +48,14 @@ export function OrgScreen() {
               <View className="flex-1"><Txt variant="h4">{o.name}</Txt>{orgLocation(o) ? <Txt variant="caption" color="textSecondary">{orgLocation(o)}</Txt> : null}{o.code ? <Txt variant="caption" color="textSecondary">ID {o.code}</Txt> : null}{o.phone ? <Txt variant="caption" color="textSecondary">{o.phone}</Txt> : null}</View>
             </View>
             {!linked ? (
-              <View className="mx-4 gap-3 border border-border-subtle bg-layer-01 p-4">
-                <Txt variant="h4">Vincúlate para continuar</Txt>
-                <Txt color="textSecondary">Al vincularte a {o.name} pasas a ser su cliente: ves sus colas abiertas y sacas turno. Puedes estar vinculado a varias organizaciones.</Txt>
-                <Button label="Vincular" icon="check" loading={busy} onPress={() => void setLinked(true)} />
+              <View className="mx-4">
+                <Card>
+                  <View className="gap-3">
+                    <Txt variant="h4">Vincúlate para continuar</Txt>
+                    <Txt color="textSecondary">Al vincularte a {o.name} pasas a ser su cliente: ves sus colas abiertas y sacas turno. Puedes estar vinculado a varias organizaciones.</Txt>
+                    <Button label="Vincular" icon="check" loading={busy} onPress={() => void setLinked(true)} />
+                  </View>
+                </Card>
               </View>
             ) : (
             <>
@@ -74,7 +78,7 @@ function QueueRow({ orgId, queueId, name, description, prefix, onPress }: { orgI
   const state = useQueueState(orgId, queueId).data;
   return (
     <ListRow
-      leading={<View className="w-[40px] h-[40px] bg-layer-02 items-center justify-center"><Txt variant="turn">{prefix}</Txt></View>}
+      leading={<View className="size-10 bg-layer-02 items-center justify-center"><Txt variant="turn">{prefix}</Txt></View>}
       title={name} subtitles={[...(description ? [description] : []), state ? `${state.waiting} en espera · ${state.serving} atendiendo` : 'Consultando fila…']}
       trailing={<Icon name="chevron-right" />} onPress={onPress} />
   );

@@ -71,7 +71,7 @@ export function NotificationsScreen() {
               return (
                 <ListRow key={n.notification.id} highlighted={isUnread} leading={<Icon name={icon} size={20} color={color} />}
                   title={<Txt weight={isUnread ? 600 : 400}>{n.notification.message}</Txt>} subtitles={[n.organizationName]}
-                  trailing={<View className="flex-row items-center gap-1"><Txt variant="caption" color="textSecondary">{formatHm(n.notification.createdAt)}</Txt>{isUnread && <View accessibilityLabel="No leída" className="w-[8px] h-[8px] bg-interactive" />}</View>}
+                  trailing={<View className="flex-row items-center gap-1"><Txt variant="caption" color="textSecondary">{formatHm(n.notification.createdAt)}</Txt>{isUnread && <View accessibilityLabel="No leída" className="size-2 bg-interactive" />}</View>}
                   onPress={isUnread ? () => void markRead(n) : undefined} />
               );
             })}
