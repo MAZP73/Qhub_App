@@ -24,3 +24,6 @@ verify_jwt = false
 
 [functions.qhub-sesion-cliente]
 verify_jwt = true
+
+[functions.qhub-invite-code]
+verify_jwt = false
