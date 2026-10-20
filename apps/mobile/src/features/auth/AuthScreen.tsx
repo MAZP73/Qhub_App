@@ -30,8 +30,10 @@ export function AuthScreen() {
     if (register) {
       const r = await users.signUp({ email, password, firstName: first, lastName: last });
       setBusy(false);
-      if (!r.ok) setError(r.failure);
-      else if (r.value === null) { setInfo('Te enviamos un correo para confirmar tu cuenta. Después inicia sesión.'); setRegister(false); }
+      if (!r.ok) {
+        setError(r.failure);
+        if (r.failure.kind === 'validation' && r.failure.fields) setErrs((e) => ({ ...e, ...r.failure.fields }));
+      } else if (r.value === null) { setInfo('Te enviamos un correo para confirmar tu cuenta. Después inicia sesión.'); setRegister(false); }
     } else {
       const r = await users.signIn(email, password);
       setBusy(false);

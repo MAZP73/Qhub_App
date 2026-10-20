@@ -592,6 +592,49 @@ begin
   begin perform public.eliminar_mi_cuenta(); raise exception 'FALLO 18d: anon ejecutó eliminar_mi_cuenta'; exception when insufficient_privilege then null; end;
   reset role; checks := checks + 1;
 
+  -- 32. puerta de la app móvil (solo clientes): es_correo_cliente solo para service_role; true para un cliente,
+  --     false para staff/inexistente; y nadie puede marcarse 'cliente' por su cuenta (app_metadata protegido, AC-3.7/AC-3.8)
+  declare
+    cli uuid := gen_random_uuid();   -- cuenta de cliente (app móvil)
+  begin
+    insert into auth.users (id, instance_id, aud, role, email, encrypted_password, email_confirmed_at, raw_user_meta_data, raw_app_meta_data, created_at, updated_at)
+    values (cli, '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'cli_'||cli||'@test.local', 'x', now(), '{"nombre":"Cliente"}', '{"tipo_cuenta":"cliente"}', now(), now());
+
+    -- es_correo_cliente no es ejecutable por authenticated ni por anon (solo service_role la usa desde la Edge Function)
+    perform set_config('request.jwt.claims', json_build_object('sub', cli, 'role', 'authenticated')::text, true);
+    set local role authenticated;
+    begin
+      perform public.es_correo_cliente('cli_'||cli||'@test.local');
+      raise exception 'FALLO 32a: authenticated ejecutó es_correo_cliente';
+    exception when insufficient_privilege then null; end;
+    reset role;
+    set local role anon;
+    begin
+      perform public.es_correo_cliente('cli_'||cli||'@test.local');
+      raise exception 'FALLO 32b: anon ejecutó es_correo_cliente';
+    exception when insufficient_privilege then null; end;
+    reset role;
+
+    -- como service_role (lo que hace la Edge Function): true para el cliente, false para staff y para un correo inexistente
+    set local role service_role;
+    if public.es_correo_cliente('cli_'||cli||'@test.local') is not true then raise exception 'FALLO 32c: un cliente no pasó la puerta'; end if;
+    if public.es_correo_cliente('a_'||a||'@test.local') is not false then raise exception 'FALLO 32d: un correo del staff pasó la puerta'; end if;
+    if public.es_correo_cliente('nadie_'||cli||'@test.local') is not false then raise exception 'FALLO 32e: un correo inexistente pasó la puerta'; end if;
+    -- normaliza mayúsculas/espacios como la función estado_de_correo
+    if public.es_correo_cliente('  CLI_'||cli||'@TEST.LOCAL  ') is not true then raise exception 'FALLO 32f: no se normalizó el correo'; end if;
+    reset role;
+
+    -- un cliente no puede fabricar su tipo_cuenta ni cambiarlo por una actualización normal (el tipo lo pone solo el servidor)
+    perform set_config('request.jwt.claims', json_build_object('sub', b, 'role', 'authenticated')::text, true);
+    set local role authenticated;
+    begin
+      update auth.users set raw_app_meta_data = jsonb_set(coalesce(raw_app_meta_data, '{}'::jsonb), '{tipo_cuenta}', '"cliente"', true) where id = b;
+      raise exception 'FALLO 32g: authenticated escribió app_metadata.tipo_cuenta';
+    exception when insufficient_privilege then null; end;
+    reset role;
+  end;
+  checks := checks + 1;
+
   raise exception 'OK: % verificaciones de seguridad pasaron (se deshace la transacción)', checks;
 end $$;
 rollback;

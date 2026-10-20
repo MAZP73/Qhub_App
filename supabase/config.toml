@@ -14,3 +14,9 @@ verify_jwt = true
 
 [functions.qhub-recover]
 verify_jwt = false
+
+[functions.qhub-registro-cliente]
+verify_jwt = false
+
+[functions.qhub-sesion-cliente]
+verify_jwt = true
