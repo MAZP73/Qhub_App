@@ -98,9 +98,11 @@ describe('con sesión', () => {
     expect(screen.queryByText('Archivo')).toBeNull(); // las archivadas no se ofrecen
     expect(await screen.findByText(/5 en espera · 1 atendiendo/)).toBeTruthy();
     await text('Escrituras');
+    await press('Turno ahora');
     await screen.findByRole('button', { name: 'Sacar turno ahora' });
     await press('Sacar turno ahora');
     await waitFor(() => expect(gw.ticketRepo.created).toEqual([{ queue: 'q1', slot: undefined }]));
+    expect(await screen.findByRole('button', { name: 'Ver mi turno' })).toBeTruthy();
   });
 
   it('reservar una franja: llena deshabilitada, la elegida viaja en UTC y se muestra en hora de la cola', async () => {
@@ -110,8 +112,7 @@ describe('con sesión', () => {
     await tab('Explorar');
     await user.press(await screen.findByText('Notaría 12'));
     await user.press(await screen.findByText('Escrituras'));
-    await user.press(await screen.findByRole('button', { name: 'Reservar franja' }));
-    expect(await screen.findByText('Elige día y franja')).toBeTruthy();
+    await user.press(await screen.findByRole('button', { name: 'Reservar cita' }));
 
     await user.press(screen.getAllByRole('button', { name: new RegExp(`^${new Date().getDate()} de `) })[0]!);
     expect(await screen.findByText('Llena')).toBeTruthy();
@@ -119,7 +120,8 @@ describe('con sesión', () => {
     expect(screen.getByRole('button', { name: '08:00, llena' }).props.accessibilityState.disabled).toBe(true);
 
     await user.press(screen.getByRole('button', { name: '08:30, 2 cupos' }));
-    await user.press(await screen.findByRole('button', { name: /^Reservar \S+ \d+, 08:30/ }));
+    // Al elegir franja se avanza al paso de confirmación; la cita viaja en UTC.
+    await user.press(await screen.findByRole('button', { name: 'Reservar cita' }));
     await waitFor(() => expect(gw.ticketRepo.created).toHaveLength(1));
     const slot = gw.ticketRepo.created[0]!.slot!;
     expect([slot.getUTCHours(), slot.getUTCMinutes()]).toEqual([13, 30]);
@@ -133,6 +135,7 @@ describe('con sesión', () => {
     await tab('Explorar');
     await user.press(await screen.findByText('Notaría 12'));
     await user.press(await screen.findByText('Escrituras'));
+    await user.press(await screen.findByRole('button', { name: 'Turno ahora' }));
     await user.press(await screen.findByRole('button', { name: 'Sacar turno ahora' }));
     expect(await screen.findByText('Esa franja ya no tiene cupos. Elige otra.')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Sacar turno ahora' })).toBeTruthy(); // sigue en la pantalla
