@@ -57,10 +57,23 @@ Deno.serve(async (req) => {
     // Sin contraseña escrita se genera una: toda persona nueva entra con una contraseña que ve al aceptar (no elige la suya).
     const initial = v.password ?? generatePassword();
     {
-      const created = await admin.auth.admin.createUser({ email: v.email, password: initial, email_confirm: true,
-        user_metadata: { nombre: v.nombre ?? undefined, apellido: v.apellido ?? undefined }, app_metadata: { clave_asignada: true } });
-      passwordSet = !created.error;
-      newPassword = created.error ? null : initial;
+      // Un correo que ya está en OTRA organización no se invita. Una cuenta que creó una invitación nuestra y quedó sin organización
+      // (p. ej. la quitaron del equipo) se reutiliza con la contraseña nueva; una cuenta ajena (app móvil, etc.) nunca se toca.
+      const { data: est } = await admin.rpc("estado_de_correo", { p_email: v.email, p_org: orgId }) as { data: { existe?: boolean; id?: string; nuestra?: boolean; en_otra_org?: boolean } | null };
+      if (est?.en_otra_org) return json(409, { error: "Ese correo ya pertenece a otra organización." });
+      if (est?.existe) {
+        if (est.nuestra && est.id) {
+          const upd = await admin.auth.admin.updateUserById(est.id, { password: initial, email_confirm: true,
+            user_metadata: { nombre: v.nombre ?? undefined, apellido: v.apellido ?? undefined }, app_metadata: { clave_asignada: true } });
+          passwordSet = !upd.error;
+          newPassword = upd.error ? null : initial;
+        }
+      } else {
+        const created = await admin.auth.admin.createUser({ email: v.email, password: initial, email_confirm: true,
+          user_metadata: { nombre: v.nombre ?? undefined, apellido: v.apellido ?? undefined }, app_metadata: { clave_asignada: true } });
+        passwordSet = !created.error;
+        newPassword = created.error ? null : initial;
+      }
       typed = !!v.password;
     }
     const { data: prev } = await admin.from("invitaciones").select("id").eq("organizacion_id", orgId).ilike("email", v.email).is("aceptada_en", null).maybeSingle();

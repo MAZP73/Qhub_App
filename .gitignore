@@ -11,7 +11,6 @@ coverage/
 *.tsbuildinfo
 .npm-cache/
 supabase/.temp/
-apk/
 # Git worktrees y artefactos internos de agentes (no son parte del producto)
 .worktrees/
 .agents/

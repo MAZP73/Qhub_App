@@ -1,11 +1,5 @@
 name: qhub_app
 
-# Todo el entorno vive en el `.env` de la raíz (compose lo lee solo). Aquí se reparte al móvil con el prefijo que necesita.
-x-mobile-env: &mobile-env
-  EXPO_PUBLIC_APP_ENV: ${APP_ENV:?falta APP_ENV en .env}
-  EXPO_PUBLIC_SUPABASE_URL: ${SUPABASE_URL:?falta SUPABASE_URL en .env}
-  EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${SUPABASE_PUBLISHABLE_KEY:?falta SUPABASE_PUBLISHABLE_KEY en .env}
-
 x-node: &node
   build: { context: ., dockerfile: docker/Dockerfile.node }
   image: qhub_app/node
@@ -22,27 +16,6 @@ services:
     <<: *node
     profiles: [tools]
     command: ["bash"]
-
-  android:                     # emulador de Android en el PC, con la pantalla en el navegador (http://localhost:6080). Se usa con `tool/emulator.sh`
-    image: budtmo/docker-android:emulator_13.0
-    profiles: [android]
-    devices: ["/dev/kvm:/dev/kvm"]
-    ports: ["127.0.0.1:6080:6080"]
-    environment:
-      EMULATOR_DEVICE: Samsung Galaxy S10
-      WEB_VNC: "true"
-    volumes: ["./apk:/apk:ro"]
-
-  mobile:                      # también con `up -d --build`: bundle de producción de la app móvil (Android) servido con nginx en http://localhost:8082
-    build: { context: ., dockerfile: docker/Dockerfile.mobile, args: *mobile-env }
-    image: qhub_app/mobile
-    restart: unless-stopped
-    ports: ["127.0.0.1:8082:80"]
-    healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://127.0.0.1/metadata.json"]
-      interval: 15s
-      timeout: 5s
-      retries: 6
 
   qhub-api:                    # API local SIN credenciales reales: arranca, pero no opera
     build: { context: /home/miguelzambrano/projects/Qhub/qhub-api, dockerfile: dockerfile }

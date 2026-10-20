@@ -10,7 +10,11 @@
     "typecheck": "npm run typecheck --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
     "lint": "npm run lint --workspaces --if-present",
-    "build": "npm run build --workspaces --if-present"
+    "build": "npm run build --workspaces --if-present",
+    "start": "bash tool/start.sh",
+    "start:tunnel": "bash tool/start.sh --tunnel",
+    "android": "bash tool/start.sh --android",
+    "ios": "bash tool/start.sh --ios"
   },
   "engines": {
     "node": ">=22"
