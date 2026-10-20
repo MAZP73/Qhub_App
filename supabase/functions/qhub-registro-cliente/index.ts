@@ -45,9 +45,11 @@ Deno.serve(async (req) => {
   // Si el proyecto exige confirmar el correo, createUser deja la cuenta sin confirmar: hay que avisar y mandar el enlace.
   const needsConfirmation = !created.user.email_confirmed_at;
   if (needsConfirmation) {
-    await createClient(url, Deno.env.get("SUPABASE_ANON_KEY")!).auth.signInWithOtp({
+    // Correo de confirmación ("signup"): sale por Brevo (hook auth-email) y el enlace vuelve a la app móvil (qhub://).
+    await createClient(url, Deno.env.get("SUPABASE_ANON_KEY")!).auth.resend({
+      type: "signup",
       email: p.value.email,
-      options: { shouldCreateUser: false },
+      options: { emailRedirectTo: "qhub://auth/callback" },
     });
   }
   return json(200, { created: true, needsConfirmation });
