@@ -18,9 +18,12 @@ Deno.serve(async (req) => {
 
   const key = Deno.env.get("BREVO_API_KEY"), from = Deno.env.get("EMAIL_FROM");
   if (!key || !from) return reply(500, "Falta configurar Brevo");
+  const mobile = (payload.email_data.redirect_to ?? "").startsWith("qhub:");
+  console.log("auth-email", payload.email_data.email_action_type, "redirect_to=", payload.email_data.redirect_to ?? "(vacío)");
   const mails = mailsFor(payload, Deno.env.get("SUPABASE_URL")!);
   for (const m of mails) {
-    const t = TEMPLATES[m.type];
+    // Si el correo nace en la app móvil (redirect qhub://), se manda la versión pensada para el móvil.
+    const t = (mobile && TEMPLATES[`${m.type}_movil`]) || TEMPLATES[m.type];
     if (!t) return reply(400, `Tipo de correo no soportado: ${m.type}`);
     const res = await fetch("https://api.brevo.com/v3/smtp/email", {
       method: "POST",
