@@ -4,6 +4,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { decide, historyRow, ownsTicket, requiresLink, ticketsIn } from "../_shared/policy.ts";
 import { apiBase, forgetToken, tokenFor } from "../_shared/qhub.ts";
+import { avisoDeTurno } from "../_shared/aviso_turno.ts";
 import {
   alcanzaHoy, bloqueoDeFranja, conflictoAlCrear, esperaAhora, estadoAhora, inicioDeFranja, local, MENSAJE_BLOQUEO, parseHorario, parseReglas, type Horario, type Reglas, type TurnoActivo,
 } from "../_shared/queue_rules.ts";
@@ -40,7 +41,7 @@ Deno.serve(async (req) => {
   const admin = createClient(url, service);
 
   // La organización debe estar publicada, activa y vinculada.
-  const { data: org } = await admin.from("organizaciones").select("id, publica, activa").eq("id", orgId).maybeSingle();
+  const { data: org } = await admin.from("organizaciones").select("id, nombre, publica, activa").eq("id", orgId).maybeSingle();
   if (!org || !org.publica || !org.activa) return json(404, { error: "Organización no disponible" });
   const { data: cred } = await admin.from("organizacion_credenciales").select("qhub_identificador, qhub_password, qhub_api_key").eq("organizacion_id", orgId).maybeSingle();
   if (!cred) return json(503, { error: "Esta organización todavía no está disponible." });
@@ -174,6 +175,19 @@ Deno.serve(async (req) => {
       }
       const tickets = ticketsIn(d.kind, res.data).filter((t) => ownsTicket(t, user.id));
       await syncHistory(admin, user.id, orgId, tickets, queueName);
+      // Aviso de la cuenta (y correo por Brevo) al sacar un turno o reservar una cita. Nunca hace fallar la petición.
+      if (d.kind === "ticket_create" && tickets[0]) {
+        try {
+          const t = tickets[0], qid = String(t.cola_id);
+          const [{ data: pref }, h] = await Promise.all([admin.from("cola_prefijos").select("prefijo").eq("organizacion_id", orgId).eq("qhub_cola_id", qid).maybeSingle(), scheduleOf(qid)]);
+          const aviso = avisoDeTurno({
+            orgName: (org as { nombre?: string }).nombre ?? "Tu organización", queueName: queueName ?? "Cola",
+            prefix: (pref?.prefijo as string | undefined) ?? (queueName ?? "Q").trim().charAt(0).toUpperCase() ?? "Q", number: Number(t.numero),
+            scheduled: t.programado === true, slotStart: String(t.franja_inicio), zona: h?.zona ?? null,
+          });
+          await admin.from("avisos_cuenta").insert({ usuario_id: user.id, ...aviso });
+        } catch (e) { console.error("aviso de turno", e instanceof Error ? e.message : "error"); }
+      }
       // /turnos/mios ya viene filtrado por persona; se devuelve tal cual.
     }
     return envelope(res.status, res.data);

@@ -9,6 +9,9 @@ import { useContainer } from '@/app/container';
 import { dayLabel, groupByDay } from '@/features/history/history';
 import { EditRequestsSection } from '@/features/permissions/EditRequestsSection';
 
+/** Marca de los avisos de la cuenta (no pertenecen a una organización). */
+const ACCOUNT = '';
+
 interface OrgNotification { organizationId: string; organizationName: string; notification: AppNotification }
 
 /** Ícono y color por tipo de aviso (design: Avisos). */
@@ -18,12 +21,16 @@ export function styleOf(kind: string | null): { icon: IconName; color: ColorName
     case 'turno_pospuesto': return { icon: 'clock', color: 'stateWaitingText' };
     case 'turno_no_show': return { icon: 'noshow', color: 'stateNoshowText' };
     case 'recordatorio': return { icon: 'bell', color: 'stateWaitingText' };
+    case 'bienvenida': case 'vinculacion': return { icon: 'check', color: 'stateServingText' };
+    case 'desvinculacion': return { icon: 'info', color: 'supportInfo' };
+    case 'turno_creado': case 'cita_creada': return { icon: 'ticket', color: 'link' };
+    case 'turno_cancelado': return { icon: 'noshow', color: 'stateNoshowText' };
     default: return { icon: 'info', color: 'supportInfo' };
   }
 }
 
 export function NotificationsScreen() {
-  const { history, gateway } = useContainer();
+  const { history, gateway, accountNotices } = useContainer();
   const qc = useQueryClient();
   const [tab, setTab] = useState(0);
 
@@ -31,6 +38,12 @@ export function NotificationsScreen() {
     queryKey: ['notifications'],
     refetchInterval: 30_000,   // sin WebSocket en el proxy: se consulta con la app a la vista
     queryFn: async () => {
+      // Avisos de la cuenta (bienvenida, vinculación, turno creado): no dependen de una organización ni de tener turnos.
+      const own = await accountNotices.list();
+      const account: OrgNotification[] = own.ok ? own.value.map((a) => ({
+        organizationId: ACCOUNT, organizationName: 'Qhub',
+        notification: { id: a.id, userId: '', ticketId: null, message: /[.!?]$/.test(a.title) ? `${a.title} ${a.message}` : `${a.title}. ${a.message}`, read: a.read, createdAt: a.createdAt, kind: a.type },
+      })) : [];
       const hist = unwrap(await history.list());
       const orgs = new Map(hist.map((e) => [e.organizationId, e.organizationName ?? 'Organización']));
       const out: OrgNotification[] = [];
@@ -39,13 +52,14 @@ export function NotificationsScreen() {
         const r = await gateway.notifications(id).list({ limit: 50 });
         if (r.ok) out.push(...r.value.map((n) => ({ organizationId: id, organizationName: name, notification: n }))); else failure ??= r.failure;
       }));
-      if (out.length === 0 && failure) throw failure;
+      if (out.length === 0 && account.length === 0 && failure) throw failure;
+      out.push(...account);
       return out.sort((a, b) => b.notification.createdAt.getTime() - a.notification.createdAt.getTime());
     },
   });
 
   async function markRead(n: OrgNotification) {
-    const r = await gateway.notifications(n.organizationId).markRead(n.notification.id);
+    const r = n.organizationId === ACCOUNT ? await accountNotices.markRead(n.notification.id) : await gateway.notifications(n.organizationId).markRead(n.notification.id);
     if (r.ok) qc.setQueryData<OrgNotification[]>(['notifications'], (cur) => (cur ?? []).map((x) => (x.notification.id === n.notification.id ? { ...x, notification: { ...x.notification, read: true } } : x)));
   }
 

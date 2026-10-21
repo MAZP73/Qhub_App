@@ -12,6 +12,7 @@ import type { OrganizationRepository, OrganizationSummary } from '@/features/org
 import type { EditRequest, EditRequestRepository } from '@/features/permissions/edit-requests';
 import { EMPTY_PROFILE, type Profile } from '@qhub/core';
 import type { ProfileRepository } from '@/features/profile/profile';
+import type { AccountNotice, AccountNoticeRepository } from '@/features/notifications/account-notices';
 import type { PushService } from '@/features/push/push';
 import { LoadActiveTickets } from '@/features/tickets/active-tickets';
 
@@ -139,7 +140,14 @@ export class FakeEditRequests implements EditRequestRepository {
   async respond(id: string, approve: boolean): Promise<Result<void>> { this.calls.push(`${approve ? 'approve' : 'reject'}:${id}`); this.items = this.items.filter((e) => e.id !== id); return ok(undefined); }
 }
 
-export interface TestContainer extends Container { fakes: { users: FakeUserRepository; orgs: FakeOrganizationRepository; history: FakeHistoryRepository; gateway: FakeGateway; editRequests: FakeEditRequests; profiles: FakeProfileRepository; push: FakePush } }
+export interface TestContainer extends Container { fakes: { users: FakeUserRepository; orgs: FakeOrganizationRepository; history: FakeHistoryRepository; gateway: FakeGateway; editRequests: FakeEditRequests; profiles: FakeProfileRepository; push: FakePush; accountNotices: FakeAccountNotices } }
+export class FakeAccountNotices implements AccountNoticeRepository {
+  readCalls: string[] = [];
+  constructor(public items: AccountNotice[] = []) {}
+  async list() { return ok([...this.items]); }
+  async markRead(id: string): Promise<Result<void>> { this.readCalls.push(id); this.items = this.items.map((n) => (n.id === id ? { ...n, read: true } : n)); return ok(undefined); }
+}
+
 export class FakePush implements PushService {
   calls: string[] = [];
   async enable() { this.calls.push('enable'); }
@@ -154,5 +162,6 @@ export function makeContainer(o: Partial<TestContainer['fakes']> = {}): TestCont
   const editRequests = o.editRequests ?? new FakeEditRequests();
   const profiles = o.profiles ?? new FakeProfileRepository();
   const push = o.push ?? new FakePush();
-  return { env: testEnv, users, organizations: orgs, history, gateway, profiles, loadActiveTickets: new LoadActiveTickets(history, gateway, orgs), session: new AppSession(users), editRequests, push, fakes: { users, orgs, history, gateway, editRequests, profiles, push } };
+  const accountNotices = o.accountNotices ?? new FakeAccountNotices();
+  return { env: testEnv, users, organizations: orgs, history, gateway, profiles, loadActiveTickets: new LoadActiveTickets(history, gateway, orgs), session: new AppSession(users), editRequests, push, accountNotices, fakes: { users, orgs, history, gateway, editRequests, profiles, push, accountNotices } };
 }

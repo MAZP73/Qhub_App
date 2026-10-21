@@ -34,3 +34,7 @@ verify_jwt = false
 # Solo la llama pg_cron con el secreto PUSH_CRON_SECRET (cabecera x-push-secret).
 [functions.qhub-push]
 verify_jwt = false
+
+# Solo la llama pg_cron con el secreto PUSH_CRON_SECRET (cabecera x-push-secret).
+[functions.qhub-correo]
+verify_jwt = false

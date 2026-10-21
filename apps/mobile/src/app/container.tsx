@@ -15,6 +15,8 @@ import { SupabaseEditRequestRepository } from '@/features/permissions/supabase-e
 import type { EditRequestRepository } from '@/features/permissions/edit-requests';
 import { SupabaseProfileRepository } from '@/features/profile/supabase-profile-repository';
 import type { ProfileRepository } from '@/features/profile/profile';
+import type { AccountNoticeRepository } from '@/features/notifications/account-notices';
+import { SupabaseAccountNoticeRepository } from '@/features/notifications/supabase-account-notices';
 import { ExpoPushService } from '@/features/push/expo-push';
 import type { PushService } from '@/features/push/push';
 import { LoadActiveTickets } from '@/features/tickets/active-tickets';
@@ -24,7 +26,7 @@ import { AppSession } from './session';
 /** Raíz de composición. En tests se sustituye por fakes. */
 export interface Container {
   env: AppEnv; users: UserRepository; organizations: OrganizationRepository; history: HistoryRepository; gateway: QhubGateway;
-  profiles: ProfileRepository; loadActiveTickets: LoadActiveTickets; session: AppSession; editRequests: EditRequestRepository; push: PushService;
+  profiles: ProfileRepository; loadActiveTickets: LoadActiveTickets; session: AppSession; editRequests: EditRequestRepository; push: PushService; accountNotices: AccountNoticeRepository;
 }
 
 export function buildContainer(env: AppEnv): Container {
@@ -34,7 +36,7 @@ export function buildContainer(env: AppEnv): Container {
   const history = new SupabaseHistoryRepository(sb);
   const gateway = new ProxyQhubGateway(supabaseProxyInvoker(sb));
   const profiles = new SupabaseProfileRepository(sb);
-  return { env, users, organizations, history, gateway, profiles, loadActiveTickets: new LoadActiveTickets(history, gateway, organizations), session: new AppSession(users), editRequests: new SupabaseEditRequestRepository(sb), push: new ExpoPushService(sb) };
+  return { env, users, organizations, history, gateway, profiles, loadActiveTickets: new LoadActiveTickets(history, gateway, organizations), session: new AppSession(users), editRequests: new SupabaseEditRequestRepository(sb), push: new ExpoPushService(sb), accountNotices: new SupabaseAccountNoticeRepository(sb) };
 }
 
 const Ctx = createContext<Container | null>(null);

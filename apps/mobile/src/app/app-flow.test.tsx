@@ -1,7 +1,7 @@
 import { act, screen, userEvent, waitFor } from '@testing-library/react-native';
 import { conflictFailure, forbiddenFailure, networkFailure, unauthorizedFailure } from '@qhub/core';
 import type { AppNotification } from '@qhub/api-client';
-import { camila, entry, FakeGateway, FakeEditRequests, FakeHistoryRepository, FakeNotifications, FakeOrganizationRepository, FakeTickets, FakeUserRepository, makeContainer, ticket } from '@/testing/fakes';
+import { camila, entry, FakeGateway, FakeEditRequests, FakeAccountNotices, FakeHistoryRepository, FakeNotifications, FakeOrganizationRepository, FakeTickets, FakeUserRepository, makeContainer, ticket } from '@/testing/fakes';
 import { renderApp } from '@/testing/harness';
 
 const signedIn = (o: Parameters<typeof makeContainer>[0] = {}) => makeContainer({ users: new FakeUserRepository(camila), ...o });
@@ -337,6 +337,21 @@ describe('con sesión', () => {
     await text('Tu turno E-007 está siendo atendido');
     await waitFor(() => expect(notes.read).toEqual(['n1']));
     expect(await screen.findByText('Estás al día')).toBeTruthy();
+  });
+
+  it('avisos de la cuenta: la bienvenida y «te uniste» aparecen aunque no haya turnos, y se marcan como leídos', async () => {
+    const notices = new FakeAccountNotices([
+      { id: 'a1', type: 'bienvenida', title: '¡Felicidades, tu cuenta está lista!', message: 'Ya puedes sacar turno.', read: false, createdAt: new Date() },
+      { id: 'a2', type: 'vinculacion', title: 'Te uniste a Notaría 12', message: 'Ya puedes ver sus colas.', read: true, createdAt: new Date(Date.now() - 3_600_000) },
+    ]);
+    const { tab, user } = setup();
+    await renderApp(signedIn({ accountNotices: notices }));
+    await tab('Avisos');
+    expect(await screen.findByText(/¡Felicidades, tu cuenta está lista!/)).toBeTruthy();
+    expect(screen.getByText(/Te uniste a Notaría 12/)).toBeTruthy();
+    expect(await screen.findByText('Sin leer (1)')).toBeTruthy();
+    await user.press(await screen.findByText(/¡Felicidades, tu cuenta está lista! Ya puedes sacar turno\./));
+    await waitFor(() => expect(notices.readCalls).toEqual(['a1']));
   });
 
   it('historial agrupa por día y muestra el estado con palabra', async () => {
