@@ -5,7 +5,6 @@ import { Pressable, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { IconName } from '@qhub/design';
 import { Icon, Logo, Txt } from '@/shared/ui/kit';
-import { useTheme } from '@/shared/ui/theme';
 import { AuthScreen } from '@/features/auth/AuthScreen';
 import { ResetPasswordScreen } from '@/features/auth/ResetPasswordScreen';
 import { HomeScreen } from '@/features/home/HomeScreen';
@@ -34,7 +33,6 @@ const TABS: ReadonlyArray<{ name: keyof TabParamList; label: string; icon: IconN
 
 /** Barra de pestañas inferior de 4 ítems (design: móvil). */
 function TabBar({ state, navigation }: { state: { index: number; routes: Array<{ key: string; name: string }> }; navigation: { navigate: (n: string) => void } }) {
-  const { c } = useTheme();
   return (
     <SafeAreaView edges={['bottom']} className="border-t border-border-subtle bg-layer-01">
       <View className="flex-row h-[56px]">

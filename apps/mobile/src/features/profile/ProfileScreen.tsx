@@ -17,7 +17,7 @@ export function ProfileScreen() {
   const nav = useNavigation<Nav>();
   const { users, push } = useContainer();
   const auth = useAuth();
-  const { c, mode, setMode } = useTheme();
+  const { mode, setMode } = useTheme();
   const [confirm, setConfirm] = useState(false);
   const user = auth.status === 'ready' ? auth.value : null;
   const p = useProfileForm();

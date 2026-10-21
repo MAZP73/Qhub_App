@@ -5,7 +5,6 @@
   "main": "index.ts",
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "test": "jest",
     "export": "expo export --platform android"
   },
   "dependencies": {

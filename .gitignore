@@ -10,7 +10,6 @@ build/
 coverage/
 *.tsbuildinfo
 .npm-cache/
-supabase/.temp/
 # Git worktrees y artefactos internos de agentes (no son parte del producto)
 .worktrees/
 .agents/

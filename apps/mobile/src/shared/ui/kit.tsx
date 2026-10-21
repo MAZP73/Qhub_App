@@ -168,17 +168,6 @@ export function Card({ children }: { children?: ReactNode }) {
   return <View className="rounded-md border border-border-subtle bg-layer-01 p-4">{children}</View>;
 }
 
-/** Grupo con título (h4), ayuda opcional y columna de hijos espaciada con tokens. No interactivo. */
-export function Section({ title, children, hint }: { title: string; children?: ReactNode; hint?: string }) {
-  return (
-    <View className="gap-3">
-      <Txt variant="h4">{title}</Txt>
-      {hint ? <Txt variant="caption" color="textSecondary">{hint}</Txt> : null}
-      <View className="gap-3">{children}</View>
-    </View>
-  );
-}
-
 /** Filtro en forma de píldoras (una activa). */
 export function Chips({ labels, index, onChange }: { labels: readonly string[]; index: number; onChange: (i: number) => void }) {
   return (
@@ -242,20 +231,6 @@ export function Tabs({ labels, index, onChange }: { labels: readonly string[]; i
         </Pressable>
       ))}
     </ScrollView>
-  );
-}
-
-export function Segmented({ labels, icons: ic, index, onChange }: { labels: readonly string[]; icons: readonly IconName[]; index: number; onChange: (i: number) => void }) {
-  return (
-    <View className="flex-row rounded-sm bg-layer-02 p-0.5">
-      {labels.map((l, i) => (
-        <Pressable key={l} accessibilityRole="button" accessibilityLabel={l} accessibilityState={{ selected: i === index }} onPress={() => onChange(i)}
-          className={cx('h-10 flex-1 flex-row items-center justify-center gap-2 rounded-sm', i === index && 'bg-interactive')}>
-          <Icon name={ic[i]!} color={i === index ? 'textOnColor' : 'textPrimary'} />
-          <Txt weight={600} color={i === index ? 'textOnColor' : 'textPrimary'} numberOfLines={1}>{l}</Txt>
-        </Pressable>
-      ))}
-    </View>
   );
 }
 

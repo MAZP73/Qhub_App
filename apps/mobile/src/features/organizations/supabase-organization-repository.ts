@@ -1,5 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { err, forbiddenFailure, isFailure, networkFailure, ok, serverFailure, unauthorizedFailure, unknownFailure, type Failure, type Result } from '@qhub/core';
+import { err, forbiddenFailure, isFailure, networkFailure, ok, serverFailure, unknownFailure, type Failure, type Result } from '@qhub/core';
 import type { OrganizationRepository, OrganizationSummary } from './organizations';
 
 type Row = Record<string, unknown>;

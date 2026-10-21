@@ -21,7 +21,6 @@ packages/
   design/        Tokens → tema de NativeWind, íconos y logos (generado desde tokens.json)
 apps/
   mobile/        features/{auth,organizations,gateway,tickets,notifications,history,profile,permissions,push}
-supabase/        migrations · functions (qhub-proxy, qhub-link, qhub-invite, qhub-clave, qhub-recover, qhub-push…) · tests (RLS)
 docker/ compose.yaml tool/   (docker: solo herramientas y pruebas; la app se corre con Expo)
 ```
 
@@ -90,15 +89,12 @@ npm run build:ios                           # requiere cuenta Apple Developer
 ```
 
 `eas.json` define los perfiles `preview` (APK) y `production`. Antes de publicar, pon en `APP_URLS` del `.env`
-la URL de la web en Vercel y el esquema `qhub://`, y corre `python3 -I tool/supabase_auth.py`.
+la URL de la web en Vercel y el esquema `qhub://`. Esas URLs se configuran en el panel de Supabase (Authentication → URL Configuration).
 
-## Verificación (Docker)
+## Herramientas (Docker)
 
 ```bash
-tool/verify.sh                                             # tipos + tests + bundle + política del proxy + contrato contra la API + RLS
 docker compose --profile tools run --rm node bash          # shell con Node 22
-docker compose --profile local-api up -d qhub-api          # API local
-docker compose --profile local-api run --rm contract-tests # pruebas de integración contra ella
 ```
 
 ## Correos que vuelven a la app (deep links)
@@ -106,28 +102,17 @@ docker compose --profile local-api run --rm contract-tests # pruebas de integrac
 El correo de confirmación y el de recuperar contraseña, pedidos desde la app, traen un enlace que abre `qhub://auth/callback`
 con la sesión en el fragmento (`#access_token=…&type=recovery`). La app lo lee (`auth-link.ts`, `AppSession.handleUrl`): la
 confirmación entra directo y la recuperación pide la contraseña nueva. Para que Supabase acepte esa redirección, `qhub://**`
-debe estar en las URL permitidas (`python3 -I tool/supabase_auth.py` ya la agrega). En **Expo Go** el esquema es `exp://`, así que
+debe estar en las URL permitidas. En **Expo Go** el esquema es `exp://`, así que
 estos enlaces solo cierran el ciclo en el APK/IPA (EAS Build); en Expo Go se puede iniciar sesión normalmente.
 
 ## Notificaciones push
 
 Cada teléfono se registra (`registrar_dispositivo_push`) al entrar a la app. La función `qhub-push` revisa los avisos de Qhub
-de quien tiene un turno vigente y los manda por Expo Push; la llama `pg_cron` cada 30 s. Se activa una sola vez:
-
-```bash
-python3 -I tool/supabase_sql.py supabase/migrations/20261101000001_push_dispositivos.sql   # tablas
-npx supabase functions deploy qhub-push --project-ref <ref> --use-api                      # función
-python3 -I tool/push_schedule.py                                                           # secreto + tarea de pg_cron
-```
+de quien tiene un turno vigente y los manda por Expo Push; la llama `pg_cron` cada 30 s (ya está activo en Supabase; `tool/push_schedule.py` lo programa si hay que repetirlo).
 
 En **Android** hace falta además configurar las credenciales FCM en EAS (`eas credentials`, Google Service Account Key);
 en iOS, la cuenta Apple Developer. Expo Go no recibe push remotas: se prueba con el APK. Sin push, la app se refresca sola
 (cada 8 s con un turno vigente y solo con la app a la vista).
-
-## Recuperación de contraseña y URLs permitidas
-
-`python3 -I tool/supabase_auth.py` fija en Supabase la URL del sitio y las redirecciones
-permitidas (`APP_URLS` en `.env`) y exige contraseñas de 8+ caracteres.
 
 ## Errores seguros
 

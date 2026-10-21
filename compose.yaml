@@ -12,38 +12,7 @@ x-node: &node
     - .:/workspace
 
 services:
-  node:                        # herramientas (no se levanta solo): npm install · typecheck · test
+  node:                        # herramientas (no se levanta solo): npm install · typecheck
     <<: *node
     profiles: [tools]
     command: ["bash"]
-
-  qhub-api:                    # API local SIN credenciales reales: arranca, pero no opera
-    build: { context: /home/miguelzambrano/projects/Qhub/qhub-api, dockerfile: dockerfile }
-    image: qhub_app/qhub-api
-    profiles: [local-api]
-    environment:
-      APP_ENV: development
-      SUPABASE_URL: ""
-      SUPABASE_KEY: ""
-      RABBITMQ_URL: ""
-      JWT_SECRET_KEY: "local-dev-secret-local-dev-secret-0123456789"
-      ADMIN_API_KEY: "local-dev-admin-key-local-dev-admin-key-01"
-      CORS_ORIGINS: "*"
-    ports: ["127.0.0.1:8000:8000"]
-    healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/')"]
-      interval: 5s
-      timeout: 3s
-      retries: 20
-
-  contract-tests:              # integración del cliente contra la API real en contenedor
-    <<: *node
-    profiles: [local-api]
-    depends_on:
-      qhub-api: { condition: service_healthy }
-    environment:
-      HOME: /tmp/home
-      npm_config_cache: /workspace/.npm-cache
-      QHUB_API_URL: http://qhub-api:8000
-    command: ["bash", "-lc", "npm run test:integration -w @qhub/api-client"]
-

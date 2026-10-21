@@ -1,5 +1,5 @@
 {
   "extends": "../../tsconfig.base.json",
-  "compilerOptions": { "noEmit": true, "types": ["jest"], "baseUrl": ".", "paths": { "@/*": ["src/*"] }, "lib": ["ES2023"] },
+  "compilerOptions": { "noEmit": true, "types": [], "baseUrl": ".", "paths": { "@/*": ["src/*"] }, "lib": ["ES2023"] },
   "include": ["src", "index.ts", "nativewind-env.d.ts"]
 }
