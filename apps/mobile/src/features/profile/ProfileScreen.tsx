@@ -15,7 +15,7 @@ const MODES: ReadonlyArray<{ value: ThemeMode; label: string }> = [{ value: 'sys
 
 export function ProfileScreen() {
   const nav = useNavigation<Nav>();
-  const { users } = useContainer();
+  const { users, push } = useContainer();
   const auth = useAuth();
   const { c, mode, setMode } = useTheme();
   const [confirm, setConfirm] = useState(false);
@@ -60,7 +60,7 @@ export function ProfileScreen() {
         <Button label="Cerrar sesión" icon="logout" kind="secondary" block onPress={() => setConfirm(true)} />
       </ScrollView>
       <ConfirmModal visible={confirm} title="Cerrar sesión" message="Tendrás que volver a iniciar sesión para ver tus turnos." confirmLabel="Cerrar sesión" danger={false}
-        onCancel={() => setConfirm(false)} onConfirm={() => { setConfirm(false); void users.signOut(); }} />
+        onCancel={() => setConfirm(false)} onConfirm={() => { setConfirm(false); void push.disable().then(() => users.signOut()); }} />
     </Screen>
   );
 }

@@ -2,7 +2,7 @@
 // sin permiso se le avisa al administrador y NO se envía el correo; con permiso aprobado se envía y el permiso se gasta.
 // La respuesta es siempre la misma (no revela si el correo existe ni a qué equipo pertenece).
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { parseRecover, recoverRedirect } from "../_shared/recover.ts";
+import { MOBILE_REDIRECT, parseRecover, recoverRedirect } from "../_shared/recover.ts";
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -24,7 +24,7 @@ Deno.serve(async (req) => {
   if (error) return json(500, { error: "No pudimos procesar la solicitud. Inténtalo de nuevo." });
 
   if (estado !== "pendiente") {
-    const r = await createClient(url, Deno.env.get("SUPABASE_ANON_KEY")!).auth.resetPasswordForEmail(p.email, { redirectTo: recoverRedirect(req.headers.get("Origin"), Deno.env.get("SITE_URL")) });
+    const r = await createClient(url, Deno.env.get("SUPABASE_ANON_KEY")!).auth.resetPasswordForEmail(p.email, { redirectTo: p.movil ? MOBILE_REDIRECT : recoverRedirect(req.headers.get("Origin"), Deno.env.get("SITE_URL")) });
     if (r.error?.status === 429) return json(429, { error: "Hay demasiados envíos seguidos. Espera unos minutos." });
   }
   return json(200, { ok: true });

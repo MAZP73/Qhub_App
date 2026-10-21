@@ -15,6 +15,8 @@ import { SupabaseEditRequestRepository } from '@/features/permissions/supabase-e
 import type { EditRequestRepository } from '@/features/permissions/edit-requests';
 import { SupabaseProfileRepository } from '@/features/profile/supabase-profile-repository';
 import type { ProfileRepository } from '@/features/profile/profile';
+import { ExpoPushService } from '@/features/push/expo-push';
+import type { PushService } from '@/features/push/push';
 import { LoadActiveTickets } from '@/features/tickets/active-tickets';
 import type { AppEnv } from './env';
 import { AppSession } from './session';
@@ -22,7 +24,7 @@ import { AppSession } from './session';
 /** Raíz de composición. En tests se sustituye por fakes. */
 export interface Container {
   env: AppEnv; users: UserRepository; organizations: OrganizationRepository; history: HistoryRepository; gateway: QhubGateway;
-  profiles: ProfileRepository; loadActiveTickets: LoadActiveTickets; session: AppSession; editRequests: EditRequestRepository;
+  profiles: ProfileRepository; loadActiveTickets: LoadActiveTickets; session: AppSession; editRequests: EditRequestRepository; push: PushService;
 }
 
 export function buildContainer(env: AppEnv): Container {
@@ -32,7 +34,7 @@ export function buildContainer(env: AppEnv): Container {
   const history = new SupabaseHistoryRepository(sb);
   const gateway = new ProxyQhubGateway(supabaseProxyInvoker(sb));
   const profiles = new SupabaseProfileRepository(sb);
-  return { env, users, organizations, history, gateway, profiles, loadActiveTickets: new LoadActiveTickets(history, gateway, organizations), session: new AppSession(users), editRequests: new SupabaseEditRequestRepository(sb) };
+  return { env, users, organizations, history, gateway, profiles, loadActiveTickets: new LoadActiveTickets(history, gateway, organizations), session: new AppSession(users), editRequests: new SupabaseEditRequestRepository(sb), push: new ExpoPushService(sb) };
 }
 
 const Ctx = createContext<Container | null>(null);
@@ -41,4 +43,14 @@ export function useContainer(): Container { const c = useContext(Ctx); if (!c) t
 export function useAuth() {
   const { session } = useContainer();
   return useSyncExternalStore(session.subscribe, session.getSnapshot);
+}
+/** ¿Está eligiendo contraseña nueva tras el enlace del correo? */
+export function useRecovering() {
+  const { session } = useContainer();
+  return useSyncExternalStore(session.subscribe, session.isRecovering);
+}
+/** Aviso que dejó un enlace del correo (vencido, etc.). */
+export function useLinkNotice() {
+  const { session } = useContainer();
+  return useSyncExternalStore(session.subscribe, session.getNotice);
 }

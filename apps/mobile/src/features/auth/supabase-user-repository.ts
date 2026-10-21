@@ -106,6 +106,34 @@ export class SupabaseUserRepository implements UserRepository {
   }
 
   signOut() { return this.run(async () => { this.lastGate = null; const { error } = await this.sb.auth.signOut(); if (error) throw error; }); }
+
+  requestPasswordReset(email: string) {
+    return this.run(async () => {
+      const { error } = await this.sb.functions.invoke('qhub-recover', { body: { email: email.trim().toLowerCase(), movil: true } });
+      if (error) throw await mapRecoverError(error);
+    });
+  }
+
+  openLinkSession(link: { accessToken: string; refreshToken: string }) {
+    return this.run(async () => {
+      this.lastGate = null;   // sesión nueva: la puerta de solo-clientes se vuelve a verificar
+      const { error } = await this.sb.auth.setSession({ access_token: link.accessToken, refresh_token: link.refreshToken });
+      if (error) throw error;
+    });
+  }
+
+  updatePassword(password: string) {
+    return this.run(async () => { const { error } = await this.sb.auth.updateUser({ password }); if (error) throw error; });
+  }
+}
+
+/** Errores de la Edge Function de recuperación: nunca revela si el correo existe. */
+async function mapRecoverError(error: unknown): Promise<unknown> {
+  if (isFetchError(error)) return networkFailure();
+  const status = (error as { context?: { status?: number } }).context?.status;
+  if (status === 400) return validationFailure('Escribe un correo válido.', { email: 'Escribe un correo válido.' });
+  if (status === 429) return rateLimitedFailure();
+  return serverFailure();
 }
 
 /** Mapea los errores de la Edge Function de registro a Failure. No reutiliza supabase-invoker: lee error.context.status/json(). */

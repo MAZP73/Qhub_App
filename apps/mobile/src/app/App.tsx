@@ -2,9 +2,9 @@ import '../../global.css';
 import { useEffect, useMemo } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { NavigationContainer, DarkTheme, DefaultTheme } from '@react-navigation/native';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { focusManager, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { Text } from 'react-native';
+import { AppState, Linking, Platform, Text } from 'react-native';
 import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
 // Solo los pesos del design system (300/400/500/600 y mono 400/500): importar el índice empaquetaría todos.
@@ -48,7 +48,21 @@ export default function App() {
   }, []);
   const client = useMemo(() => new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: 5_000 } } }), []);
 
+  // En el móvil no hay «foco de ventana»: la app a la vista (activa) hace que las consultas se refresquen al volver y se pausen en segundo plano.
+  useEffect(() => {
+    if (Platform.OS === 'web') return;
+    const sub = AppState.addEventListener('change', (s) => focusManager.setFocused(s === 'active'));
+    return () => sub.remove();
+  }, []);
   useEffect(() => { if ('container' in boot) boot.container.session.start(); return () => { if ('container' in boot) boot.container.session.dispose(); }; }, [boot]);
+  // Enlaces de los correos (confirmar cuenta, recuperar contraseña): con la app cerrada llegan por getInitialURL; abierta, por el evento.
+  useEffect(() => {
+    if (!('container' in boot)) return;
+    const { session } = boot.container;
+    void Linking.getInitialURL().then((u) => session.handleUrl(u)).catch(() => undefined);
+    const sub = Linking.addEventListener('url', ({ url }) => { void session.handleUrl(url); });
+    return () => sub.remove();
+  }, [boot]);
   useEffect(() => { if (fontsLoaded) void SplashScreen.hideAsync(); }, [fontsLoaded]);
 
   if (!fontsLoaded) return null;

@@ -2,12 +2,21 @@ import { useQuery } from '@tanstack/react-query';
 import { unwrap } from '@qhub/core';
 import { useContainer } from './container';
 
-export const ACTIVE_REFRESH_MS = 15_000;
+/** Con un turno vigente se consulta seguido; sin turnos, con calma. */
+export const ACTIVE_REFRESH_MS = 8_000;
+export const IDLE_REFRESH_MS = 20_000;
 
-/** Mis turnos vigentes. Se refresca cada 15 s (el proxy no expone WebSocket). */
+/**
+ * Mis turnos vigentes. El proxy no expone WebSocket, así que se consulta en intervalos: rápido mientras haya un turno vigente
+ * y solo con la app a la vista (react-query pausa en segundo plano y refresca al volver; ver `focusManager` en App).
+ */
 export function useActiveTickets() {
   const { loadActiveTickets } = useContainer();
-  return useQuery({ queryKey: ['active-tickets'], queryFn: async () => unwrap(await loadActiveTickets.run()), refetchInterval: ACTIVE_REFRESH_MS });
+  return useQuery({
+    queryKey: ['active-tickets'],
+    queryFn: async () => unwrap(await loadActiveTickets.run()),
+    refetchInterval: (q) => (q.state.data?.length ? ACTIVE_REFRESH_MS : IDLE_REFRESH_MS),
+  });
 }
 export function useOrgSearch(query: string) {
   const { organizations } = useContainer();

@@ -18,3 +18,7 @@ Deno.test("mailsFor: el enlace vuelve al sitio público, no a una vista previa",
   assertEquals(new URL(m[0].link).searchParams.get("redirect_to"), "https://qhub-web-psi.vercel.app/invitacion?token=t");
 });
 Deno.test("render: sustituye el enlace", () => assertEquals(render("<a href=\"{{ .ConfirmationURL }}\">", "L"), "<a href=\"L\">"));
+Deno.test("mailsFor: el enlace de la app móvil (qhub://) no se reescribe al sitio web", () => {
+  const m = mailsFor({ ...base, email_data: { ...base.email_data, redirect_to: "qhub://auth/callback", email_action_type: "recovery" } }, "https://p.supabase.co", "https://qhub-web-psi.vercel.app");
+  assertEquals(new URL(m[0].link).searchParams.get("redirect_to"), "qhub://auth/callback");
+});

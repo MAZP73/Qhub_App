@@ -29,6 +29,7 @@ export function NotificationsScreen() {
 
   const q = useQuery({
     queryKey: ['notifications'],
+    refetchInterval: 30_000,   // sin WebSocket en el proxy: se consulta con la app a la vista
     queryFn: async () => {
       const hist = unwrap(await history.list());
       const orgs = new Map(hist.map((e) => [e.organizationId, e.organizationName ?? 'Organización']));

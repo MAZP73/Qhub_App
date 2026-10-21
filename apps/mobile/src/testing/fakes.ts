@@ -12,6 +12,7 @@ import type { OrganizationRepository, OrganizationSummary } from '@/features/org
 import type { EditRequest, EditRequestRepository } from '@/features/permissions/edit-requests';
 import { EMPTY_PROFILE, type Profile } from '@qhub/core';
 import type { ProfileRepository } from '@/features/profile/profile';
+import type { PushService } from '@/features/push/push';
 import { LoadActiveTickets } from '@/features/tickets/active-tickets';
 
 export const testEnv: AppEnv = { appEnv: 'production', supabaseUrl: 'https://x.supabase.co', supabaseKey: 'sb_publishable_test' };
@@ -27,6 +28,10 @@ export class FakeUserRepository implements UserRepository {
   async signIn(email: string): Promise<Result<AppUser>> { this.calls.push(`signIn:${email}`); if (this.signInFailure) return err(this.signInFailure); this.user = { id: 'u1', email, displayName: 'Camila Ríos' }; this.emit(); return ok(this.user); }
   async signUp(i: { email: string }): Promise<Result<AppUser | null>> { this.calls.push(`signUp:${i.email}`); return ok(null); }
   async signOut(): Promise<Result<void>> { this.calls.push('signOut'); this.user = null; this.emit(); return ok(undefined); }
+  linkFailure: Failure | null = null; resetFailure: Failure | null = null; passwordFailure: Failure | null = null;
+  async requestPasswordReset(email: string): Promise<Result<void>> { this.calls.push(`reset:${email}`); return this.resetFailure ? err(this.resetFailure) : ok(undefined); }
+  async openLinkSession(l: { accessToken: string }): Promise<Result<void>> { this.calls.push(`link:${l.accessToken}`); if (this.linkFailure) return err(this.linkFailure); this.user = { id: 'u1', email: 'camila@x.co', displayName: 'Camila Ríos' }; this.emit(); return ok(undefined); }
+  async updatePassword(p: string): Promise<Result<void>> { this.calls.push(`password:${p}`); return this.passwordFailure ? err(this.passwordFailure) : ok(undefined); }
 }
 
 export class FakeOrganizationRepository implements OrganizationRepository {
@@ -130,7 +135,13 @@ export class FakeEditRequests implements EditRequestRepository {
   async respond(id: string, approve: boolean): Promise<Result<void>> { this.calls.push(`${approve ? 'approve' : 'reject'}:${id}`); this.items = this.items.filter((e) => e.id !== id); return ok(undefined); }
 }
 
-export interface TestContainer extends Container { fakes: { users: FakeUserRepository; orgs: FakeOrganizationRepository; history: FakeHistoryRepository; gateway: FakeGateway; editRequests: FakeEditRequests; profiles: FakeProfileRepository } }
+export interface TestContainer extends Container { fakes: { users: FakeUserRepository; orgs: FakeOrganizationRepository; history: FakeHistoryRepository; gateway: FakeGateway; editRequests: FakeEditRequests; profiles: FakeProfileRepository; push: FakePush } }
+export class FakePush implements PushService {
+  calls: string[] = [];
+  async enable() { this.calls.push('enable'); }
+  async disable() { this.calls.push('disable'); }
+}
+
 export function makeContainer(o: Partial<TestContainer['fakes']> = {}): TestContainer {
   const users = o.users ?? new FakeUserRepository();
   const orgs = o.orgs ?? new FakeOrganizationRepository();
@@ -138,5 +149,6 @@ export function makeContainer(o: Partial<TestContainer['fakes']> = {}): TestCont
   const gateway = o.gateway ?? new FakeGateway();
   const editRequests = o.editRequests ?? new FakeEditRequests();
   const profiles = o.profiles ?? new FakeProfileRepository();
-  return { env: testEnv, users, organizations: orgs, history, gateway, profiles, loadActiveTickets: new LoadActiveTickets(history, gateway, orgs), session: new AppSession(users), editRequests, fakes: { users, orgs, history, gateway, editRequests, profiles } };
+  const push = o.push ?? new FakePush();
+  return { env: testEnv, users, organizations: orgs, history, gateway, profiles, loadActiveTickets: new LoadActiveTickets(history, gateway, orgs), session: new AppSession(users), editRequests, push, fakes: { users, orgs, history, gateway, editRequests, profiles, push } };
 }

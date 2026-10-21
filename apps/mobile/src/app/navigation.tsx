@@ -7,6 +7,7 @@ import type { IconName } from '@qhub/design';
 import { Icon, Logo, Txt } from '@/shared/ui/kit';
 import { useTheme } from '@/shared/ui/theme';
 import { AuthScreen } from '@/features/auth/AuthScreen';
+import { ResetPasswordScreen } from '@/features/auth/ResetPasswordScreen';
 import { HistoryScreen } from '@/features/history/HistoryScreen';
 import { NotificationsScreen } from '@/features/notifications/NotificationsScreen';
 import { ExploreScreen } from '@/features/organizations/ExploreScreen';
@@ -14,11 +15,12 @@ import { OrgScreen } from '@/features/organizations/OrgScreen';
 import { ProfileScreen } from '@/features/profile/ProfileScreen';
 import { MyTurnScreen } from '@/features/tickets/MyTurnScreen';
 import { TakeTurnScreen } from '@/features/tickets/TakeTurnScreen';
-import { useAuth } from './container';
+import { useEffect } from 'react';
+import { useAuth, useContainer, useRecovering } from './container';
 
 export type TabParamList = { MyTurn: undefined; Explore: undefined; Notifications: undefined; History: undefined };
 export type RootStackParamList = {
-  Auth: undefined; Tabs: NavigatorScreenParams<TabParamList> | undefined; Org: { organizationId: string }; TakeTurn: { organizationId: string; queueId: string }; Profile: undefined;
+  Auth: undefined; ResetPassword: undefined; Tabs: NavigatorScreenParams<TabParamList> | undefined; Org: { organizationId: string }; TakeTurn: { organizationId: string; queueId: string }; Profile: undefined;
 };
 export type Nav = NavigationProp<RootStackParamList>;
 
@@ -52,6 +54,8 @@ function TabBar({ state, navigation }: { state: { index: number; routes: Array<{
 }
 
 function Tabs() {
+  const { push } = useContainer();
+  useEffect(() => { void push.enable(); }, [push]);   // con la sesión ya dentro de la app: pide permiso y registra el teléfono
   return (
     <Tab.Navigator tabBar={(p) => <TabBar {...(p as unknown as Parameters<typeof TabBar>[0])} />} screenOptions={{ headerShown: false }}>
       <Tab.Screen name="MyTurn" component={MyTurnScreen} />
@@ -67,11 +71,12 @@ function Splash() { return <View className="flex-1 items-center justify-center">
 /** Según la sesión: cargando → logo, sin sesión → acceso, con sesión → la app. */
 export function RootNavigator() {
   const auth = useAuth();
+  const recovering = useRecovering();
   if (auth.status === 'loading') return <Splash />;
   const signedIn = auth.value !== null;
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
-      {signedIn ? (
+      {signedIn && recovering ? <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} /> : signedIn ? (
         <>
           <Stack.Screen name="Tabs" component={Tabs} />
           <Stack.Screen name="Org" component={OrgScreen} />

@@ -13,11 +13,13 @@ const fnError = (status: number, body: unknown) => ({
 
 interface FakeConfig {
   signIn?: InvokeResult;
+  setSession?: InvokeResult;
+  updateUser?: InvokeResult;
   invoke?: Partial<Record<string, InvokeResult | (() => InvokeResult)>>;
 }
 
 function fakeClient(cfg: FakeConfig = {}) {
-  const calls = { signOut: 0, signIn: 0, invoke: [] as string[] };
+  const calls = { signOut: 0, signIn: 0, invoke: [] as string[], setSession: [] as unknown[], updateUser: [] as unknown[], bodies: [] as unknown[] };
   let authListener: ((e: string, s: unknown) => void) | null = null;
   let session: unknown = null;
 
@@ -29,6 +31,8 @@ function fakeClient(cfg: FakeConfig = {}) {
         if (!r.error) session = { user: (r.data as { user: unknown }).user };
         return Promise.resolve(r);
       },
+      setSession: (t: unknown) => { calls.setSession.push(t); return Promise.resolve(cfg.setSession ?? { data: {}, error: null }); },
+      updateUser: (a: unknown) => { calls.updateUser.push(a); return Promise.resolve(cfg.updateUser ?? { data: {}, error: null }); },
       signOut: () => { calls.signOut += 1; session = null; return Promise.resolve({ error: null }); },
       getSession: () => Promise.resolve({ data: { session } }),
       onAuthStateChange: (cb: (e: string, s: unknown) => void) => {
@@ -37,8 +41,8 @@ function fakeClient(cfg: FakeConfig = {}) {
       },
     },
     functions: {
-      invoke: (name: string, _opts?: unknown) => {
-        calls.invoke.push(name);
+      invoke: (name: string, opts?: unknown) => {
+        calls.invoke.push(name); calls.bodies.push(opts);
         const r = cfg.invoke?.[name] ?? { data: { cliente: true }, error: null };
         return Promise.resolve(typeof r === 'function' ? r() : r);
       },
@@ -155,5 +159,37 @@ describe('SupabaseUserRepository: registro', () => {
     const { sb } = fakeClient({ invoke: { 'qhub-registro-cliente': { data: null, error: fnError(500, {}) } } });
     const r = await new SupabaseUserRepository(sb).signUp(input);
     expect(!r.ok && r.failure.kind).toBe('server');
+  });
+});
+
+describe('SupabaseUserRepository: recuperar contraseña y enlaces del correo', () => {
+  it('requestPasswordReset pide el enlace para la app (movil) con el correo normalizado', async () => {
+    const { sb, calls } = fakeClient({ invoke: { 'qhub-recover': { data: { ok: true }, error: null } } });
+    const r = await new SupabaseUserRepository(sb).requestPasswordReset(' Cli@X.co ');
+    expect(r.ok).toBe(true);
+    expect(calls.bodies[0]).toEqual({ body: { email: 'cli@x.co', movil: true } });
+  });
+  it('requestPasswordReset traduce el límite de envíos', async () => {
+    const { sb } = fakeClient({ invoke: { 'qhub-recover': { data: null, error: fnError(429, {}) } } });
+    const r = await new SupabaseUserRepository(sb).requestPasswordReset('cli@x.co');
+    expect(!r.ok && r.failure.kind).toBe('rate_limited');
+  });
+  it('openLinkSession abre la sesión con los tokens del enlace', async () => {
+    const { sb, calls } = fakeClient();
+    const r = await new SupabaseUserRepository(sb).openLinkSession({ accessToken: 'a', refreshToken: 'r' });
+    expect(r.ok).toBe(true);
+    expect(calls.setSession).toEqual([{ access_token: 'a', refresh_token: 'r' }]);
+  });
+  it('openLinkSession con enlace inválido falla sin detalles técnicos', async () => {
+    const { sb } = fakeClient({ setSession: { data: {}, error: { name: 'AuthApiError', message: 'jwt expired', status: 401 } } });
+    const r = await new SupabaseUserRepository(sb).openLinkSession({ accessToken: 'a', refreshToken: 'r' });
+    expect(r.ok).toBe(false);
+    expect(!r.ok && r.failure.message).not.toMatch(/jwt/i);
+  });
+  it('updatePassword cambia la contraseña de la sesión', async () => {
+    const { sb, calls } = fakeClient();
+    const r = await new SupabaseUserRepository(sb).updatePassword('nueva12345');
+    expect(r.ok).toBe(true);
+    expect(calls.updateUser).toEqual([{ password: 'nueva12345' }]);
   });
 });

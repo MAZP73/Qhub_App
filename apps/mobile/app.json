@@ -26,7 +26,14 @@
     "plugins": [
       "expo-font",
       "expo-splash-screen",
-      "expo-status-bar"
+      "expo-status-bar",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#3b4eff"
+        }
+      ]
     ],
     "extra": {
       "eas": {

@@ -9,7 +9,7 @@ Aquí está la app móvil, los paquetes compartidos, Supabase (migraciones y Edg
 | Para quién | Público (clientes que sacan turno) |
 | Stack | React Native (Expo) · React Navigation · TanStack Query · NativeWind |
 | Cómo se prueba | **Expo Go** en tu teléfono (sin APK ni emulador) |
-| Hace | Explorar organizaciones, vincularse, sacar turno (ahora o reservado), ver posición y espera, avisos, historial, perfil |
+| Hace | Explorar organizaciones, vincularse, sacar turno (ahora o reservado), ver posición y espera, avisos (con push), historial, perfil, recuperar contraseña |
 | API Qhub | **Nunca directa**: por la Edge Function `qhub-proxy` (Supabase) |
 
 ## Estructura
@@ -20,8 +20,8 @@ packages/
   api-client/    Cliente de la API Qhub: dominio (entidades, puertos, casos de uso) + datos (fetch, WebSocket)
   design/        Tokens → tema de NativeWind, íconos y logos (generado desde tokens.json)
 apps/
-  mobile/        features/{auth,organizations,gateway,tickets,notifications,history,profile,permissions}
-supabase/        migrations · functions (qhub-proxy, qhub-link, qhub-invite, qhub-clave) · tests (RLS)
+  mobile/        features/{auth,organizations,gateway,tickets,notifications,history,profile,permissions,push}
+supabase/        migrations · functions (qhub-proxy, qhub-link, qhub-invite, qhub-clave, qhub-recover, qhub-push…) · tests (RLS)
 docker/ compose.yaml tool/   (docker: solo herramientas y pruebas; la app se corre con Expo)
 ```
 
@@ -100,6 +100,29 @@ docker compose --profile tools run --rm node bash          # shell con Node 22
 docker compose --profile local-api up -d qhub-api          # API local
 docker compose --profile local-api run --rm contract-tests # pruebas de integración contra ella
 ```
+
+## Correos que vuelven a la app (deep links)
+
+El correo de confirmación y el de recuperar contraseña, pedidos desde la app, traen un enlace que abre `qhub://auth/callback`
+con la sesión en el fragmento (`#access_token=…&type=recovery`). La app lo lee (`auth-link.ts`, `AppSession.handleUrl`): la
+confirmación entra directo y la recuperación pide la contraseña nueva. Para que Supabase acepte esa redirección, `qhub://**`
+debe estar en las URL permitidas (`python3 -I tool/supabase_auth.py` ya la agrega). En **Expo Go** el esquema es `exp://`, así que
+estos enlaces solo cierran el ciclo en el APK/IPA (EAS Build); en Expo Go se puede iniciar sesión normalmente.
+
+## Notificaciones push
+
+Cada teléfono se registra (`registrar_dispositivo_push`) al entrar a la app. La función `qhub-push` revisa los avisos de Qhub
+de quien tiene un turno vigente y los manda por Expo Push; la llama `pg_cron` cada 30 s. Se activa una sola vez:
+
+```bash
+python3 -I tool/supabase_sql.py supabase/migrations/20261101000001_push_dispositivos.sql   # tablas
+npx supabase functions deploy qhub-push --project-ref <ref> --use-api                      # función
+python3 -I tool/push_schedule.py                                                           # secreto + tarea de pg_cron
+```
+
+En **Android** hace falta además configurar las credenciales FCM en EAS (`eas credentials`, Google Service Account Key);
+en iOS, la cuenta Apple Developer. Expo Go no recibe push remotas: se prueba con el APK. Sin push, la app se refresca sola
+(cada 8 s con un turno vigente y solo con la app a la vista).
 
 ## Recuperación de contraseña y URLs permitidas
 

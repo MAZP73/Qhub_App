@@ -1,4 +1,4 @@
-import { screen, userEvent, waitFor } from '@testing-library/react-native';
+import { act, screen, userEvent, waitFor } from '@testing-library/react-native';
 import { conflictFailure, forbiddenFailure, networkFailure, unauthorizedFailure } from '@qhub/core';
 import type { AppNotification } from '@qhub/api-client';
 import { camila, entry, FakeGateway, FakeEditRequests, FakeHistoryRepository, FakeNotifications, FakeOrganizationRepository, FakeTickets, FakeUserRepository, makeContainer, ticket } from '@/testing/fakes';
@@ -53,6 +53,74 @@ describe('acceso', () => {
     await type('Nombre', 'Camila'); await type('Apellido', 'Ríos'); await type('Correo', 'camila@x.co'); await type('Contraseña', 'secreto123');await press('Crear cuenta', 0);
     expect(await screen.findByText(/confirmar tu cuenta/)).toBeTruthy();
     expect(c.fakes.users.calls).toEqual(['signUp:camila@x.co']);
+  });
+});
+
+describe('recuperar contraseña', () => {
+  const RECOVERY = 'qhub://auth/callback#access_token=tok&refresh_token=ref&type=recovery';
+
+  it('desde el acceso pide el enlace y no revela si el correo existe', async () => {
+    const c = makeContainer();
+    const { press, type } = setup();
+    await renderApp(c);
+    await press('¿Olvidaste tu contraseña?');
+    expect(screen.queryByLabelText('Contraseña')).toBeNull();
+    await press('Enviar enlace');
+    expect(await screen.findByText('Escribe un correo válido.')).toBeTruthy();
+    await type('Correo', 'camila@x.co'); await press('Enviar enlace');
+    expect(await screen.findByText(/Si el correo está registrado/)).toBeTruthy();
+    expect(c.fakes.users.calls).toEqual(['reset:camila@x.co']);
+    await press('Volver a iniciar sesión');
+    expect(await screen.findByLabelText('Contraseña')).toBeTruthy();
+  });
+
+  it('el enlace del correo pide la contraseña nueva y luego entra a la app', async () => {
+    const c = makeContainer();
+    const { press, type, user } = setup();
+    await renderApp(c);
+    await act(async () => { await c.session.handleUrl(RECOVERY); });
+    expect(await screen.findByText('Elige tu nueva contraseña')).toBeTruthy();
+    expect(screen.queryByText('Aún no estás vinculado a ninguna organización')).toBeNull();
+    await type('Contraseña nueva', 'corta'); await type('Repite la contraseña', 'otra'); await press('Guardar contraseña');
+    expect(await screen.findByText('Usa al menos 8 caracteres.')).toBeTruthy();
+    await user.clear(await screen.findByLabelText('Contraseña nueva')); await user.clear(await screen.findByLabelText('Repite la contraseña'));
+    await type('Contraseña nueva', 'nueva-clave-9'); await type('Repite la contraseña', 'distinta-99'); await press('Guardar contraseña');
+    expect(await screen.findByText('Las contraseñas no coinciden.')).toBeTruthy();
+    await user.clear(await screen.findByLabelText('Repite la contraseña')); await type('Repite la contraseña', 'nueva-clave-9'); await press('Guardar contraseña');
+    expect(await screen.findByText('Aún no estás vinculado a ninguna organización')).toBeTruthy();
+    expect(c.fakes.users.calls).toEqual(['link:tok', 'password:nueva-clave-9']);
+  });
+
+  it('cancelar cierra la sesión que abrió el enlace', async () => {
+    const c = makeContainer();
+    const { press } = setup();
+    await renderApp(c);
+    await act(async () => { await c.session.handleUrl(RECOVERY); });
+    await press('Cancelar');
+    expect(await screen.findByText('Tu turno, sin filas.')).toBeTruthy();
+    expect(c.fakes.users.calls).toEqual(['link:tok', 'signOut']);
+  });
+
+  it('un enlace vencido se avisa en el acceso', async () => {
+    const c = makeContainer();
+    await renderApp(c);
+    await act(async () => { await c.session.handleUrl('qhub://auth/callback#error=access_denied&error_code=otp_expired'); });
+    expect(await screen.findByText('El enlace venció o ya se usó. Pide uno nuevo.')).toBeTruthy();
+  });
+
+  it('el enlace de confirmación de cuenta entra directo, sin pedir contraseña', async () => {
+    const c = makeContainer();
+    await renderApp(c);
+    await act(async () => { await c.session.handleUrl('qhub://auth/callback#access_token=tok&refresh_token=ref&type=signup'); });
+    expect(await screen.findByText('Aún no estás vinculado a ninguna organización')).toBeTruthy();
+    expect(screen.queryByText('Elige tu nueva contraseña')).toBeNull();
+  });
+
+  it('un enlace que no es de autenticación se ignora', async () => {
+    const c = makeContainer();
+    await renderApp(c);
+    await act(async () => { await c.session.handleUrl('qhub://org/1'); });
+    expect(c.fakes.users.calls).toEqual([]);
   });
 });
 
@@ -291,5 +359,6 @@ describe('con sesión', () => {
     await press('Cerrar sesión', 1);
     await waitFor(() => expect(c.fakes.users.calls).toEqual(['signOut']));
     expect(await screen.findByText('Tu turno, sin filas.')).toBeTruthy();
+    expect(c.fakes.push.calls).toEqual(['enable', 'disable']);   // se registra al entrar y se quita al salir
   });
 });

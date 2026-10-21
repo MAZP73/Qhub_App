@@ -9,10 +9,15 @@ env = {}
 for line in (root / ".env").read_text().splitlines():
     if "=" in line and not line.startswith("#"):
         k, v = line.split("=", 1); env[k.strip()] = v.strip()
-urls = [u.strip().rstrip("/") for u in env.get("APP_URLS", "http://localhost:8080").split(",") if u.strip()]
+raw_urls = [u.strip() for u in env.get("APP_URLS", "http://localhost:8080").split(",") if u.strip()]
+# Esquemas de la app móvil (qhub://) se conservan con sus dos barras; las URL web pierden la barra final.
+urls = [u if u.endswith("://") else u.rstrip("/") for u in raw_urls]
+allow = [f"{u}**" if u.endswith("://") else f"{u}/**" for u in urls]
+if not any(u.startswith("qhub:") for u in urls): allow.append("qhub://**")   # los correos de la app móvil siempre deben poder volver a ella
+site = next(u for u in urls if not u.endswith("://"))
 patch = {
-    "site_url": urls[0],
-    "uri_allow_list": ",".join(f"{u}/**" for u in urls),
+    "site_url": site,
+    "uri_allow_list": ",".join(allow),
     "password_min_length": 8,
     "mfa_totp_enroll_enabled": True,    # verificación en dos pasos con app autenticadora (Mi perfil → Seguridad)
     "mfa_totp_verify_enabled": True,
@@ -75,5 +80,5 @@ print("password_min_length:", now.get("password_min_length"))
 print("2FA (TOTP) habilitado:", now.get("mfa_totp_enroll_enabled"), now.get("mfa_totp_verify_enabled"))
 bad = [k for k, v in mails.items() if now.get(f"mailer_subjects_{k}") != v[0]]
 print("correos con la marca:", "aplicados" if not bad else "pendientes (necesitan SMTP propio)")
-ok = now.get("password_min_length") == 8 and now.get("site_url") == urls[0] and now.get("mfa_totp_enroll_enabled") is True
+ok = now.get("password_min_length") == 8 and now.get("site_url") == site and "qhub://**" in (now.get("uri_allow_list") or "") and now.get("mfa_totp_enroll_enabled") is True
 sys.exit(0 if ok else 1)
