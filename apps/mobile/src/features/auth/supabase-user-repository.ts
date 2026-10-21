@@ -6,8 +6,9 @@ import {
 import type { AppUser, UserRepository } from './user';
 
 /** La app móvil es solo para clientes. Si el correo es del staff (web) o no está registrado como cliente, se cierra la sesión. */
-export const CLIENT_GATE_MESSAGE =
-  'Este correo no está registrado como cliente. Usa la app para clientes o inicia sesión en la web.';
+export const CLIENT_GATE_MESSAGE = 'Este correo es de la plataforma web de Qhub. La app y la web son cuentas independientes: usa un correo diferente para la app.';
+/** Registro con un correo que ya es de la plataforma web. */
+export const PLATFORM_EMAIL_MESSAGE = 'Ese correo ya se usa en la plataforma web de Qhub. La app es independiente: regístrate con un correo diferente al de la web.';
 
 const GATE_TTL_MS = 10_000;
 
@@ -149,7 +150,11 @@ async function mapRegistroError(error: unknown): Promise<unknown> {
     } catch { /* cuerpo no legible: validación sin campos */ }
     return validationFailure('Revisa los datos ingresados.', fields);
   }
-  if (status === 409) return conflictFailure('Ese correo ya está registrado. Inicia sesión o recupera tu contraseña.');
+  if (status === 409) {
+    let code: string | undefined;
+    try { code = ((await ctx?.json?.()) as { error?: string } | null)?.error; } catch { /* cuerpo no legible: se trata como correo ya registrado */ }
+    return conflictFailure(code === 'correo_de_plataforma' ? PLATFORM_EMAIL_MESSAGE : 'Ese correo ya está registrado. Inicia sesión o recupera tu contraseña.');
+  }
   if (status === 429) return rateLimitedFailure();
   return serverFailure();
 }
