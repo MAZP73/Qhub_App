@@ -20,4 +20,6 @@ Deno.test("qhubUsername y confirmLink", () => {
   assertEquals(qhubUsername("a@x.co", 1, () => 0), "axx1000");
   assertEquals(confirmLink("https://app.co", "t"), "https://app.co/confirmar?token=t");
   assertEquals(confirmLink("javascript:1", "t"), undefined);
+  assertEquals(confirmLink("https://x-git-main.vercel.app", "t", "https://qhub-web-psi.vercel.app"), "https://qhub-web-psi.vercel.app/confirmar?token=t");   // vista previa protegida: se usa el sitio público
+  assertEquals(confirmLink("http://localhost:5173", "t", "https://qhub-web-psi.vercel.app"), "http://localhost:5173/confirmar?token=t");
 });

@@ -24,7 +24,7 @@ Deno.serve(async (req) => {
   if (error) return json(500, { error: "No pudimos procesar la solicitud. Inténtalo de nuevo." });
 
   if (estado !== "pendiente") {
-    const r = await createClient(url, Deno.env.get("SUPABASE_ANON_KEY")!).auth.resetPasswordForEmail(p.email, { redirectTo: recoverRedirect(req.headers.get("Origin")) });
+    const r = await createClient(url, Deno.env.get("SUPABASE_ANON_KEY")!).auth.resetPasswordForEmail(p.email, { redirectTo: recoverRedirect(req.headers.get("Origin"), Deno.env.get("SITE_URL")) });
     if (r.error?.status === 429) return json(429, { error: "Hay demasiados envíos seguidos. Espera unos minutos." });
   }
   return json(200, { ok: true });

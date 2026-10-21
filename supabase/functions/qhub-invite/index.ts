@@ -100,7 +100,7 @@ Deno.serve(async (req) => {
   }
 
   const email = String(inv!.email);
-  const redirectTo = redirectFor(req.headers.get("Origin"), String(inv!.token));
+  const redirectTo = redirectFor(req.headers.get("Origin"), String(inv!.token), Deno.env.get("SITE_URL"));
   const meta = { nombre: inv!.nombre ?? undefined, apellido: inv!.apellido ?? undefined };
   let sent = false; let motivo: string | undefined;
   const first = await admin.auth.admin.inviteUserByEmail(email, { redirectTo, data: meta });

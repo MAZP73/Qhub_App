@@ -1,3 +1,4 @@
+import { siteOrigin } from "./site.ts";
 // Reglas puras de la invitación por correo (sin red): validación de lo que llega y enlace al que vuelve la persona.
 export const ROLES = ["admin", "supervisor", "agente", "recepcion"] as const;
 export type Rol = typeof ROLES[number];
@@ -33,13 +34,9 @@ export function parseInvite(b: Record<string, unknown> | null): Parsed {
 }
 
 /** A dónde vuelve la persona al tocar el botón del correo. Solo orígenes http(s); Supabase además exige que estén en su lista de permitidos. */
-export function redirectFor(origin: string | null, token: string): string | undefined {
-  try {
-    if (!origin) return undefined;
-    const u = new URL(origin);
-    if (u.protocol !== "https:" && u.protocol !== "http:") return undefined;
-    return `${u.origin}/invitacion?token=${encodeURIComponent(token)}`;
-  } catch { return undefined; }
+export function redirectFor(origin: string | null, token: string, site?: string | null): string | undefined {
+  const o = siteOrigin(origin, site);
+  return o ? `${o}/invitacion?token=${encodeURIComponent(token)}` : undefined;
 }
 
 /** Contraseña aleatoria legible (sin 0/O ni 1/l/I) que cumple las reglas: letras, números y un símbolo. */

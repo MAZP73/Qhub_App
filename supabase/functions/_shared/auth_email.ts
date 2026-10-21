@@ -1,3 +1,4 @@
+import { withSite } from "./site.ts";
 // Reglas puras del correo de autenticación (sin red): a quién va, con qué enlace y con qué plantilla.
 export interface HookPayload {
   user: { email: string; new_email?: string };
@@ -15,10 +16,10 @@ export function verifyLink(supabaseUrl: string, tokenHash: string, type: string,
 }
 
 /** Los correos que hay que mandar para un evento. El cambio de correo seguro manda uno al actual y otro al nuevo. */
-export function mailsFor(p: HookPayload, supabaseUrl: string): Mail[] {
+export function mailsFor(p: HookPayload, supabaseUrl: string, site?: string | null): Mail[] {
   const { user, email_data: d } = p;
   const type = d.email_action_type;
-  const link = (hash: string) => verifyLink(supabaseUrl, hash, type, d.redirect_to);
+  const link = (hash: string) => verifyLink(supabaseUrl, hash, type, withSite(d.redirect_to, site));
   if (type === "email_change") {
     const out: Mail[] = [];
     if (d.token_hash) out.push({ to: user.email, type, link: link(d.token_hash) });

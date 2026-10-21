@@ -1,3 +1,4 @@
+import { siteOrigin } from "./site.ts";
 // Reglas puras de la recuperación de contraseña (sin red).
 const EMAIL = /^[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)+$/;
 
@@ -7,10 +8,7 @@ export function parseRecover(b: Record<string, unknown> | null): { email: string
 }
 
 /** A dónde vuelve la persona al tocar el botón del correo. Solo orígenes http(s). */
-export function recoverRedirect(origin: string | null): string | undefined {
-  try {
-    if (!origin) return undefined;
-    const u = new URL(origin);
-    return u.protocol === "https:" || u.protocol === "http:" ? `${u.origin}/restablecer` : undefined;
-  } catch { return undefined; }
+export function recoverRedirect(origin: string | null, site?: string | null): string | undefined {
+  const o = siteOrigin(origin, site);
+  return o ? `${o}/restablecer` : undefined;
 }

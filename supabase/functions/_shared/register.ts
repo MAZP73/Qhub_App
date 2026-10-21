@@ -1,3 +1,4 @@
+import { siteOrigin } from "./site.ts";
 // Reglas puras del registro con confirmación (sin red): validación de lo que llega y el usuario de Qhub que se propone.
 export interface Cuenta { tipo: "persona" | "empresa"; nombre: string; pais: string; ciudad: string; zona_horaria: string }
 export interface RegisterInput { email: string; password: string; nombre: string; apellido: string; cuenta: Cuenta }
@@ -35,14 +36,10 @@ export function qhubBody(r: RegisterInput, username: string): Record<string, unk
   };
 }
 
-/** Enlace del botón del correo; solo orígenes http(s). */
-export function confirmLink(origin: string | null, token: string): string | undefined {
-  try {
-    if (!origin) return undefined;
-    const u = new URL(origin);
-    if (u.protocol !== "https:" && u.protocol !== "http:") return undefined;
-    return `${u.origin}/confirmar?token=${encodeURIComponent(token)}`;
-  } catch { return undefined; }
+/** Enlace del botón del correo de registro (ver `siteOrigin`). */
+export function confirmLink(origin: string | null, token: string, site?: string | null): string | undefined {
+  const o = siteOrigin(origin, site);
+  return o ? `${o}/confirmar?token=${encodeURIComponent(token)}` : undefined;
 }
 
 export const sha256Hex = async (s: string) =>

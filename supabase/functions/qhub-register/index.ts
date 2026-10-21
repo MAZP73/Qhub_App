@@ -66,7 +66,7 @@ Deno.serve(async (req) => {
   if (prev && Date.now() - new Date(String(prev.creado_en)).getTime() < 60_000) return json(429, { error: "Ya te enviamos un correo. Espera un minuto para pedir otro." });
 
   const raw = [...crypto.getRandomValues(new Uint8Array(32))].map((x) => x.toString(16).padStart(2, "0")).join("");
-  const link = confirmLink(req.headers.get("Origin"), raw);
+  const link = confirmLink(req.headers.get("Origin"), raw, Deno.env.get("SITE_URL"));
   const brevo = Deno.env.get("BREVO_API_KEY"), from = Deno.env.get("EMAIL_FROM");
   if (!link || !brevo || !from) return json(503, { error: "El registro no está disponible por ahora. Inténtalo más tarde." });
 
