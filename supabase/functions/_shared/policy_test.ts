@@ -95,3 +95,11 @@ Deno.test("vincularse: ver colas y sacar turno lo exigen; lo propio no", () => {
   for (const k of ["queues_list", "queue_get", "queue_schedule", "queue_slots", "queue_state", "ticket_create"] as const) assert(requiresLink(k), k);
   for (const k of ["ticket_mine", "ticket_get", "ticket_cancel", "ticket_postpone", "notif_list", "notif_read", "notif_delete"] as const) assertEquals(requiresLink(k), false, k);
 });
+
+Deno.test("decide: /colas/{id}/ahora lo resuelve el proxy, exige vínculo y devuelve el id de la cola", () => {
+  const id = "11111111-1111-4111-8111-111111111111";
+  const d = decide({ organizacion_id: id, method: "GET", path: `/colas/${id}/ahora` });
+  if (!d.ok) throw new Error("debía permitirse");
+  assertEquals([d.kind, d.queueId, requiresLink(d.kind)], ["queue_now", id, true]);
+  assertEquals(decide({ organizacion_id: id, method: "POST", path: `/colas/${id}/ahora` }).ok, false);
+});

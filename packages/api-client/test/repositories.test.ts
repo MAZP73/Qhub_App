@@ -155,3 +155,25 @@ describe('notificaciones y salud', () => {
     expect(value<{ supabase: string }>(await new HealthRepositoryImpl(t).ready()).supabase).toBe('caido');
   });
 });
+
+describe('colas: reglas del servidor (franjas bloqueadas y «ahora»)', () => {
+  it('las franjas traen el motivo del bloqueo y lo desconocido se ignora', async () => {
+    const t = new FakeTransport().on('GET /colas/q1/franjas', [
+      { inicio: '2026-11-04T18:00:00Z', fin: '2026-11-04T18:30:00Z', cupos: 3, ocupados: 0, disponibles: 3, bloqueada: 'descanso' },
+      { inicio: '2026-11-04T19:00:00Z', fin: '2026-11-04T19:30:00Z', cupos: 3, ocupados: 0, disponibles: 3, bloqueada: 'otra-cosa' },
+      { inicio: '2026-11-04T20:00:00Z', fin: '2026-11-04T20:30:00Z', cupos: 3, ocupados: 0, disponibles: 3 },
+    ]);
+    const r = value<{ blocked: string | null }[]>(await new QueueRepositoryImpl(t).slots('q1'));
+    expect(r.map((s) => s.blocked)).toEqual(['descanso', null, null]);
+  });
+  it('now lee abierta, espera, descansos y si ya tiene turno ahora', async () => {
+    const t = new FakeTransport().on('GET /colas/q1/ahora', {
+      cola_id: 'q1', abierta: false, motivo: 'Estamos en descanso hasta las 14:00.', reabre_a: '14:00', descanso: { desde: '13:00', hasta: '14:00' },
+      delante: 0, espera_min: null, ya_tiene_ahora: true, descansos: [{ desde: '13:00', hasta: '14:00' }], margen_ahora_min: 3,
+    });
+    expect(value(await new QueueRepositoryImpl(t).now('q1'))).toEqual({
+      queueId: 'q1', open: false, reason: 'Estamos en descanso hasta las 14:00.', reopensAt: '14:00', ahead: 0, waitMinutes: null, alreadyHasNow: true,
+      breaks: [{ from: '13:00', to: '14:00' }], marginMinutes: 3,
+    });
+  });
+});

@@ -1,7 +1,7 @@
 import { guard, type Result } from '@qhub/core';
 import { isoDate } from '../util';
 import type { QueueRepository } from '../../domain/repositories';
-import type { CreateQueueInput, Queue, QueueLimit, QueueState, Schedule, ScheduleInput, Slot } from '../../domain/entities';
+import type { CreateQueueInput, Queue, QueueLimit, QueueNow, QueueState, Schedule, ScheduleInput, Slot } from '../../domain/entities';
 import { call, mapError, type HttpTransport } from '../transport';
 import * as M from '../mappers';
 import { list, obj, type J } from './shared';
@@ -49,6 +49,9 @@ export class QueueRepositoryImpl implements QueueRepository {
   }
   slots(id: string, date?: Date): Promise<Result<Slot[]>> {
     return guard(async () => list(await call(this.t, { method: 'GET', path: `/colas/${id}/franjas`, query: { fecha: date ? isoDate(date) : undefined } })).map(M.slotFromJson), mapError);
+  }
+  now(id: string): Promise<Result<QueueNow>> {
+    return guard(async () => M.queueNowFromJson(obj(await call(this.t, { method: 'GET', path: `/colas/${id}/ahora` }))), mapError);
   }
   state(id: string): Promise<Result<QueueState>> {
     return guard(async () => M.queueStateFromJson(obj(await call(this.t, { method: 'GET', path: `/colas/${id}/estado` }))), mapError);

@@ -1,6 +1,6 @@
 import { err, notFoundFailure, ok, type Failure, type Result } from '@qhub/core';
 import type {
-  AppNotification, CreateQueueInput, NotificationRepository, Queue, QueueLimit, QueueRepository, QueueState, Schedule, ScheduleInput, Slot, Ticket, TicketFilter, TicketRepository, TicketStatus,
+  AppNotification, CreateQueueInput, QueueNow, SlotBlock, NotificationRepository, Queue, QueueLimit, QueueRepository, QueueState, Schedule, ScheduleInput, Slot, Ticket, TicketFilter, TicketRepository, TicketStatus,
 } from '@qhub/api-client';
 import type { AppEnv } from '@/app/env';
 import { AppSession } from '@/app/session';
@@ -64,6 +64,10 @@ export const ticket = (id: string, n: number, status: TicketStatus, o: Partial<T
 
 export class FakeQueues implements QueueRepository {
   slotRequests: number[] = [];
+  /** Si se define, la franja con cupo llega bloqueada por el servidor (descanso, muy pronto…). */
+  slotBlock: SlotBlock | null = null;
+  nowInfo: QueueNow = { queueId: 'q1', open: true, reason: null, reopensAt: null, ahead: 2, waitMinutes: 20, alreadyHasNow: false, breaks: [], marginMinutes: 3 };
+  async now(): Promise<Result<QueueNow>> { return ok(this.nowInfo); }
   async list() { return ok<Queue[]>([{ id: 'q1', ownerName: 'Notaría 12', name: 'Escrituras', description: 'Con cita', active: true }, { id: 'q2', ownerName: 'Notaría 12', name: 'Archivo', description: null, active: false }]); }
   async get(): Promise<Result<Queue>> { return err(notFoundFailure()); }
   async create(_i: CreateQueueInput): Promise<Result<Queue>> { throw new Error('no usado'); }
@@ -80,7 +84,7 @@ export class FakeQueues implements QueueRepository {
     const at = (h: number, m: number) => new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate(), h, m));
     return ok([
       { start: at(13, 0), end: at(13, 30), capacity: 6, taken: 6, available: 0 },
-      { start: at(13, 30), end: at(14, 0), capacity: 6, taken: 4, available: 2 },
+      { start: at(13, 30), end: at(14, 0), capacity: 6, taken: 4, available: 2, blocked: this.slotBlock },
     ]);
   }
   async state(id: string): Promise<Result<QueueState>> { return ok({ queueId: id, waiting: 5, serving: 1 }); }

@@ -92,4 +92,39 @@ describe('TakeTurn — asistente estilo cita (Objetivo 2)', () => {
     await user.press(screen.getByRole('button', { name: 'Atrás' }));
     expect(await screen.findByRole('button', { name: '08:30, 2 cupos' })).toBeTruthy();
   });
+
+  it('turno ahora muestra cuántos hay delante y la espera aproximada', async () => {
+    const c = signedIn({ gateway: new FakeGateway(), orgs: linkedOrgs() });
+    await openTakeTurn(c);
+    expect(await screen.findByText(/2 personas delante · espera aproximada de 20 min/)).toBeTruthy();
+  });
+
+  it('en descanso el turno ahora se deshabilita con el motivo y la cita sigue disponible', async () => {
+    const queues = Object.assign(new FakeGateway().queueRepo, {});
+    queues.nowInfo = { ...queues.nowInfo, open: false, reason: 'Estamos en descanso hasta las 14:00.', reopensAt: '14:00', waitMinutes: null, breaks: [{ from: '13:00', to: '14:00' }] };
+    const c = signedIn({ gateway: new FakeGateway(queues), orgs: linkedOrgs() });
+    await openTakeTurn(c);
+    expect(await screen.findByText(/Estamos en descanso hasta las 14:00\. Puedes reservar una cita\./)).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Turno ahora' }).props.accessibilityState.disabled).toBe(true);
+    expect(screen.getByRole('button', { name: 'Reservar cita' }).props.accessibilityState.disabled).toBe(false);
+    expect(screen.getByText(/descanso 13:00–14:00/)).toBeTruthy();
+  });
+
+  it('si ya tiene un turno ahora en la cola no puede sacar otro', async () => {
+    const queues = new FakeGateway().queueRepo;
+    queues.nowInfo = { ...queues.nowInfo, alreadyHasNow: true };
+    await openTakeTurn(signedIn({ gateway: new FakeGateway(queues), orgs: linkedOrgs() }));
+    expect(await screen.findByText(/Ya tienes un turno ahora en esta cola/)).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Turno ahora' }).props.accessibilityState.disabled).toBe(true);
+  });
+
+  it('una franja con cupo pero en descanso sale deshabilitada con su motivo', async () => {
+    const queues = new FakeGateway().queueRepo;
+    queues.slotBlock = 'descanso';
+    const user = await openTakeTurn(signedIn({ gateway: new FakeGateway(queues), orgs: linkedOrgs() }));
+    await user.press(await screen.findByRole('button', { name: 'Reservar cita' }));
+    await user.press(screen.getAllByRole('button', { name: new RegExp(`^${today()} de `) })[0]!);
+    const slot = await screen.findByRole('button', { name: '08:30, descanso' });
+    expect(slot.props.accessibilityState.disabled).toBe(true);
+  });
 });

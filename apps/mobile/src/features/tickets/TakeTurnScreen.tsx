@@ -7,21 +7,21 @@ import { inQueueTime, queueUtcOffsetMinutes, type Slot } from '@qhub/api-client'
 import { AppBar, Button, Card, EmptyState, Icon, IconButton, Notice, OrgMark, Screen, Skeleton, Txt, useToast } from '@/shared/ui/kit';
 import { DateSlotPicker, longDate, slotTime } from '@/shared/ui/DateSlotPicker';
 import { useContainer } from '@/app/container';
-import { useOrg, useOrgPrefixes, useOrgQueues, useSchedule, useSlots } from '@/app/hooks';
+import { useOrg, useOrgPrefixes, useOrgQueues, useQueueNow, useSchedule, useSlots } from '@/app/hooks';
 import { orgLocation, orgMark } from '@/features/organizations/organizations';
 import type { Nav, RootStackParamList } from '@/app/navigation';
 
 type Step = 'choose' | 'schedule' | 'confirm' | 'done';
 
 /** Tarjeta de elección (turno ahora / reservar cita) con ícono, título, descripción y chevron. */
-function ChoiceCard({ icon, title, description, onPress }: { icon: 'ticket' | 'calendar'; title: string; description: string; onPress: () => void }) {
+function ChoiceCard({ icon, title, description, onPress, disabled }: { icon: 'ticket' | 'calendar'; title: string; description: string; onPress: () => void; disabled?: boolean }) {
   return (
-    <Pressable accessibilityRole="button" accessibilityLabel={title} onPress={onPress} className="active:opacity-80">
+    <Pressable accessibilityRole="button" accessibilityLabel={title} accessibilityState={{ disabled: !!disabled }} disabled={disabled} onPress={onPress} className={disabled ? 'opacity-60' : 'active:opacity-80'}>
       <Card>
         <View className="flex-row items-center gap-3">
-          <Icon name={icon} size={20} color="link" />
+          <Icon name={icon} size={20} color={disabled ? 'textDisabled' : 'link'} />
           <View className="flex-1"><Txt weight={600}>{title}</Txt><Txt variant="caption" color="textSecondary">{description}</Txt></View>
-          <Icon name="chevron-right" />
+          {disabled ? null : <Icon name="chevron-right" />}
         </View>
       </Card>
     </Pressable>
@@ -38,6 +38,7 @@ export function TakeTurnScreen() {
   const queue = useOrgQueues(organizationId).data?.find((q) => q.id === queueId);
   const prefix = useOrgPrefixes(organizationId).data?.[queueId] ?? defaultQueuePrefix(queue?.name ?? '');
   const schedule = useSchedule(organizationId, queueId);
+  const now = useQueueNow(organizationId, queueId).data;
 
   const [step, setStep] = useState<Step>('choose');
   const [reserve, setReserve] = useState(false);
@@ -57,11 +58,12 @@ export function TakeTurnScreen() {
     if (r.ok) {
       setCreated({ number: r.value.number });
       toast.show(`Listo: tu turno es ${formatTurnNumber(r.value.number, prefix)}.`);
-      await qc.invalidateQueries({ queryKey: ['active-tickets'] });
+      await Promise.all([qc.invalidateQueries({ queryKey: ['active-tickets'] }), qc.invalidateQueries({ queryKey: ['queue-now', organizationId, queueId] })]);
       setStep('done');
     } else {
       setError(r.failure);
-      if (r.failure.kind === 'conflict' && reserve) {
+      void qc.invalidateQueries({ queryKey: ['queue-now', organizationId, queueId] });
+      if ((r.failure.kind === 'conflict' || r.failure.kind === 'validation') && reserve) {
         setSlot(null);
         await qc.invalidateQueries({ queryKey: ['slots', organizationId, queueId] });
         setStep('schedule');
@@ -82,6 +84,15 @@ export function TakeTurnScreen() {
     <Txt variant="h4">{`${prefix} · ${queue?.name ?? 'Cola'}`}</Txt>
   );
 
+  /** Qué se le dice a la persona sobre sacar turno ahora: espera aproximada, o por qué no se puede. */
+  const nowText = (): { text: string; disabled: boolean } => {
+    if (!now) return { text: `Atiende de ${trimSeconds(sch!.opens)} a ${trimSeconds(sch!.closes)}. Te avisamos cuando se acerque tu turno.`, disabled: false };
+    if (now.alreadyHasNow) return { text: 'Ya tienes un turno ahora en esta cola. Termínalo o cancélalo para sacar otro.', disabled: true };
+    if (!now.open) return { text: `${now.reason ?? 'Ahora no hay atención.'} Puedes reservar una cita.`, disabled: true };
+    const people = now.ahead === 0 ? 'No hay nadie delante' : now.ahead === 1 ? '1 persona delante' : `${now.ahead} personas delante`;
+    return { text: `${people} · espera aproximada de ${now.waitMinutes ?? now.marginMinutes} min. Te avisamos cuando se acerque.`, disabled: false };
+  };
+
   function renderBody() {
     if (step === 'done') {
       return (
@@ -100,9 +111,9 @@ export function TakeTurnScreen() {
           {header}
           {queueContext}
           {error ? <Notice kind={error.kind === 'conflict' ? 'warning' : 'error'} title={error.message} /> : null}
-          <ChoiceCard icon="ticket" title="Turno ahora" description={`Atiende de ${trimSeconds(sch.opens)} a ${trimSeconds(sch.closes)}. Te avisamos cuando se acerque tu turno.`}
+          <ChoiceCard icon="ticket" title="Turno ahora" description={nowText().text} disabled={nowText().disabled}
             onPress={() => { setReserve(false); setError(null); setStep('confirm'); }} />
-          <ChoiceCard icon="calendar" title="Reservar cita" description="Elige el día y la hora que te queden mejor."
+          <ChoiceCard icon="calendar" title="Reservar cita" description={`Elige el día y la hora${now?.breaks.length ? ` (descanso ${now.breaks.map((b) => `${trimSeconds(b.from)}–${trimSeconds(b.to)}`).join(', ')})` : ''}. Puedes tener varias citas.`}
             onPress={() => { setReserve(true); setError(null); setStep('schedule'); }} />
         </ScrollView>
       );
@@ -139,7 +150,7 @@ export function TakeTurnScreen() {
                 <View className="flex-row justify-between gap-3"><Txt color="textSecondary">Cupos</Txt><Txt weight={600}>{slot ? String(slot.available) : '—'}</Txt></View>
               </>
             ) : (
-              <Txt color="textSecondary">{`Atiende de ${trimSeconds(sch.opens)} a ${trimSeconds(sch.closes)}. Te avisamos cuando se acerque tu turno.`}</Txt>
+              <Txt color="textSecondary">{nowText().text}</Txt>
             )}
           </View>
         </Card>

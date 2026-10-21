@@ -52,8 +52,21 @@ export const capacityPerSlot = (s: Pick<ScheduleInput, 'slotMinutes' | 'turnMinu
 
 export interface CreateQueueInput { readonly name: string; readonly description?: string; readonly schedule?: ScheduleInput }
 
-export interface Slot { readonly start: Date; readonly end: Date; readonly capacity: number; readonly taken: number; readonly available: number }
+/** Por qué una franja no se puede reservar aunque tenga cupo (lo decide el servidor; no viene de la API Qhub). */
+export type SlotBlock = 'pasada' | 'pronto' | 'descanso';
+export interface Slot { readonly start: Date; readonly end: Date; readonly capacity: number; readonly taken: number; readonly available: number; readonly blocked?: SlotBlock | null }
 export const slotIsFull = (s: Slot) => s.available <= 0;
+export const slotIsBlocked = (s: Slot) => !!s.blocked;
+/** Cupo y tiempo: la franja se puede elegir. */
+export const slotIsBookable = (s: Slot) => !slotIsFull(s) && !slotIsBlocked(s);
+export const SLOT_BLOCK_LABEL: Record<SlotBlock, string> = { pasada: 'Ya pasó', pronto: 'Muy pronto', descanso: 'Descanso' };
+
+export interface Break { readonly from: string; readonly to: string }
+/** ¿Se puede sacar turno «ahora» en esta cola y cuánto se espera? Lo calcula el servidor con el horario, los descansos y la fila. */
+export interface QueueNow {
+  readonly queueId: string; readonly open: boolean; readonly reason: string | null; readonly reopensAt: string | null;
+  readonly ahead: number; readonly waitMinutes: number | null; readonly alreadyHasNow: boolean; readonly breaks: readonly Break[]; readonly marginMinutes: number;
+}
 export const slotIsLow = (s: Slot) => s.available > 0 && s.available <= 2;
 
 export interface QueueState { readonly queueId: string; readonly waiting: number; readonly serving: number }

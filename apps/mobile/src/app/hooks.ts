@@ -56,6 +56,11 @@ export function useSlots(orgId: string, queueId: string, date: Date | null) {
   const key = date ? `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}` : null;
   return useQuery({ queryKey: ['slots', orgId, queueId, key], enabled: date !== null, queryFn: async () => unwrap(await gateway.queues(orgId).slots(queueId, date!)) });
 }
+/** ¿Se puede sacar turno ahora y cuánto se espera? Se refresca con la app a la vista (la espera cambia cada minuto). */
+export function useQueueNow(orgId: string, queueId: string) {
+  const { gateway } = useContainer();
+  return useQuery({ queryKey: ['queue-now', orgId, queueId], queryFn: async () => unwrap(await gateway.queues(orgId).now(queueId)), refetchInterval: 20_000 });
+}
 export function useHistory() {
   const { history } = useContainer();
   return useQuery({ queryKey: ['history'], queryFn: async () => unwrap(await history.list()) });

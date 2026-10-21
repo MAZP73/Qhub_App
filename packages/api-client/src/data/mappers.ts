@@ -1,7 +1,7 @@
 import { isTicketStatusLike } from './guards';
 import {
-  parseTicketStatus, type AccountType, type AppNotification, type Queue, type QueueEvent, type QueueEventType, type QueueLimit, type QueueState,
-  type Registration, type RegisterInput, type Schedule, type ScheduleInput, type Slot, type Ticket,
+  parseTicketStatus, type AccountType, type AppNotification, type Queue, type QueueEvent, type QueueEventType, type QueueLimit, type QueueNow, type QueueState,
+  type Registration, type RegisterInput, type Schedule, type ScheduleInput, type Slot, type SlotBlock, type Ticket,
 } from '../domain/entities';
 
 type J = Record<string, unknown>;
@@ -30,7 +30,13 @@ export const scheduleToJson = (x: ScheduleInput): J => ({
   dias_anticipacion_maxima: x.maxDaysAhead, ...(x.timeZone ? { zona_horaria: x.timeZone } : {}),
 });
 
-export const slotFromJson = (j: J): Slot => ({ start: d(j.inicio), end: d(j.fin), capacity: n(j.cupos), taken: n(j.ocupados), available: n(j.disponibles) });
+const slotBlock = (v: unknown): SlotBlock | null => (v === 'pasada' || v === 'pronto' || v === 'descanso' ? v : null);
+export const slotFromJson = (j: J): Slot => ({ start: d(j.inicio), end: d(j.fin), capacity: n(j.cupos), taken: n(j.ocupados), available: n(j.disponibles), blocked: slotBlock(j.bloqueada) });
+export const queueNowFromJson = (j: J): QueueNow => ({
+  queueId: s(j.cola_id), open: Boolean(j.abierta), reason: (j.motivo as string | null | undefined) ?? null, reopensAt: (j.reabre_a as string | null | undefined) ?? null,
+  ahead: n(j.delante), waitMinutes: j.espera_min === null || j.espera_min === undefined ? null : n(j.espera_min), alreadyHasNow: Boolean(j.ya_tiene_ahora),
+  breaks: ((j.descansos as { desde?: string; hasta?: string }[] | undefined) ?? []).map((b) => ({ from: s(b.desde ?? ''), to: s(b.hasta ?? '') })), marginMinutes: n(j.margen_ahora_min, 3),
+});
 export const queueStateFromJson = (j: J): QueueState => ({ queueId: s(j.cola_id), waiting: n(j.turnos_en_espera), serving: n(j.turnos_atendiendo) });
 export const queueLimitFromJson = (j: J): QueueLimit => ({
   accountType: (j.propietario_tipo === 'usuario' ? 'usuario' : 'empresa') as AccountType, limit: n(j.limite), active: n(j.activas), available: n(j.disponibles),

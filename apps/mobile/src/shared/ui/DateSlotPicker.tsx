@@ -1,6 +1,6 @@
 import { Pressable, View } from 'react-native';
 import { formatHmUtc } from '@qhub/core';
-import { inQueueTime, slotIsFull, slotIsLow, type Slot } from '@qhub/api-client';
+import { inQueueTime, SLOT_BLOCK_LABEL, slotIsBookable, slotIsFull, slotIsLow, type Slot } from '@qhub/api-client';
 import { cx, Icon, Skeleton, Txt } from './kit';
 
 const MONTHS = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
@@ -57,14 +57,15 @@ export function DateSlotPicker(p: {
       {p.loadingSlots ? <Skeleton height={48} /> : p.selectedDate && p.slots.length === 0 ? <Txt color="textSecondary">No hay franjas ese día.</Txt> : (
         <View className="flex-row flex-wrap gap-2">
           {p.slots.map((s) => {
-            const full = slotIsFull(s);
+            const full = !slotIsBookable(s);
+            const note = s.blocked ? SLOT_BLOCK_LABEL[s.blocked] : slotIsFull(s) ? 'Llena' : `${s.available} cupos`;
             const sel = p.selectedSlot?.start.getTime() === s.start.getTime();
             const time = slotTime(s, p.offsetMinutes, p.formatLocal);
             return (
-              <Pressable key={s.start.toISOString()} disabled={full} accessibilityRole="button" accessibilityLabel={`${time}, ${full ? 'llena' : `${s.available} cupos`}`} accessibilityState={{ disabled: full, selected: sel }} onPress={() => p.onSlotChange(s)}
+              <Pressable key={s.start.toISOString()} disabled={full} accessibilityRole="button" accessibilityLabel={`${time}, ${note.toLowerCase()}`} accessibilityState={{ disabled: full, selected: sel }} onPress={() => p.onSlotChange(s)}
                 className={cx('min-h-14 w-[31.5%] items-center justify-center rounded-sm border', sel ? 'border-interactive bg-interactive' : full ? 'border-border-subtle bg-layer-selected' : 'border-border-subtle bg-layer-01')}>
                 <Txt variant="code" weight={500} color={sel ? 'textOnColor' : full ? 'textDisabled' : 'textPrimary'}>{time}</Txt>
-                <Txt variant="caption" color={sel ? 'textOnColor' : full ? 'textDisabled' : slotIsLow(s) ? 'stateWaitingText' : 'textSecondary'}>{full ? 'Llena' : `${s.available} cupos`}</Txt>
+                <Txt variant="caption" color={sel ? 'textOnColor' : full ? 'textDisabled' : slotIsLow(s) ? 'stateWaitingText' : 'textSecondary'}>{note}</Txt>
               </Pressable>
             );
           })}

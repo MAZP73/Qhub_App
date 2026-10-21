@@ -60,7 +60,7 @@ export function Button({ label, onPress, kind = 'primary', big = true, icon, blo
   const k = BTN[kind];
   return (
     <Pressable testID={testID} accessibilityRole="button" accessibilityLabel={label} accessibilityState={{ disabled: off, busy: !!loading }} disabled={off} onPress={onPress}
-      className={cx('flex-row items-center justify-between gap-2 rounded-sm px-4 active:opacity-80', big ? 'min-h-control-lg' : 'min-h-control-md', off ? 'bg-layer-selected' : k.box, block ? 'self-stretch' : 'self-start')}>
+      className={cx('flex-row items-center justify-center gap-2 rounded-sm px-4 active:opacity-80', big ? 'min-h-control-lg' : 'min-h-control-md', off ? 'bg-layer-selected' : k.box, block ? 'self-stretch' : 'self-start')}>
       <Txt color={off ? 'textDisabled' : k.fg}>{label}</Txt>
       {loading ? <ActivityIndicator /> : icon ? <Icon name={icon} color={off ? 'textDisabled' : k.fg} /> : null}
     </Pressable>
@@ -123,7 +123,7 @@ export function EmptyState({ title, message, action }: { title: string; message?
       <Logo name="qhub-simbolo" height={48} />
       <Txt variant="h3" className="text-center">{title}</Txt>
       {message ? <Txt color="textSecondary" className="text-center">{message}</Txt> : null}
-      {action}
+      {action ? <View className="items-center pt-2">{action}</View> : null}
     </View>
   );
 }

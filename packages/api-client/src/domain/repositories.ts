@@ -1,6 +1,6 @@
 import type { Result } from '@qhub/core';
 import type {
-  AppNotification, AuthToken, ConnectionStatus, CreateQueueInput, Queue, QueueEvent, QueueLimit, QueueState, Readiness,
+  AppNotification, AuthToken, ConnectionStatus, CreateQueueInput, Queue, QueueEvent, QueueLimit, QueueNow, QueueState, Readiness,
   RegisterInput, Registration, Schedule, ScheduleInput, Slot, Ticket, TicketFilter,
 } from './entities';
 
@@ -22,6 +22,8 @@ export interface QueueRepository {
   replaceSchedule(id: string, input: ScheduleInput): Promise<Result<Schedule>>;
   slots(id: string, date?: Date): Promise<Result<Slot[]>>;
   state(id: string): Promise<Result<QueueState>>;
+  /** Solo a través del proxy de la app móvil: ¿se puede sacar turno ahora y cuánto se espera? */
+  now(id: string): Promise<Result<QueueNow>>;
 }
 
 export interface TicketRepository {

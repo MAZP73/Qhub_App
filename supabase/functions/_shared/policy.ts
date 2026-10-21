@@ -11,12 +11,12 @@ export type ProxyRequest = {
 };
 
 export type Kind =
-  | "queues_list" | "queue_get" | "queue_schedule" | "queue_slots" | "queue_state"
+  | "queues_list" | "queue_get" | "queue_schedule" | "queue_slots" | "queue_state" | "queue_now"
   | "ticket_create" | "ticket_mine" | "ticket_get" | "ticket_cancel" | "ticket_postpone"
   | "notif_list" | "notif_read" | "notif_delete";
 
 export type Decision =
-  | { ok: true; kind: Kind; method: string; path: string; query: Record<string, string>; body?: Record<string, unknown>; ticketId?: string }
+  | { ok: true; kind: Kind; method: string; path: string; query: Record<string, string>; body?: Record<string, unknown>; ticketId?: string; queueId?: string }
   | { ok: false; status: number; message: string };
 
 export const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -28,6 +28,8 @@ const ROUTES: { method: string; re: RegExp; kind: Kind }[] = [
   { method: "GET", re: new RegExp(`^/colas/${ID}/horario$`), kind: "queue_schedule" },
   { method: "GET", re: new RegExp(`^/colas/${ID}/franjas$`), kind: "queue_slots" },
   { method: "GET", re: new RegExp(`^/colas/${ID}/estado$`), kind: "queue_state" },
+  // No es una ruta de la API: la resuelve el proxy (¿se puede sacar turno ahora?, ¿cuánto se espera?).
+  { method: "GET", re: new RegExp(`^/colas/${ID}/ahora$`), kind: "queue_now" },
   { method: "POST", re: /^\/turnos$/, kind: "ticket_create" },
   { method: "GET", re: /^\/turnos\/mios$/, kind: "ticket_mine" },
   { method: "GET", re: new RegExp(`^/turnos/${ID}$`), kind: "ticket_get" },
@@ -86,6 +88,7 @@ export function decide(req: ProxyRequest): Decision {
 
   const idMatch = path.match(route.re);
   const ticketId = route.kind.startsWith("ticket_") && idMatch?.[1] ? idMatch[1] : undefined;
+  const queueId = route.kind.startsWith("queue_") && idMatch?.[1] ? idMatch[1] : undefined;
   if (idMatch?.[1] && !UUID.test(idMatch[1])) return deny(400, "id inválido");
 
   let body: Record<string, unknown> | undefined;
@@ -103,7 +106,7 @@ export function decide(req: ProxyRequest): Decision {
     return deny(400, "esta operación no admite cuerpo");
   }
 
-  return { ok: true, kind: route.kind, method, path, query, body, ticketId };
+  return { ok: true, kind: route.kind, method, path, query, body, ticketId, queueId };
 }
 
 /** La API filtra por cuenta, no por persona: la pertenencia del turno se verifica aquí. */
@@ -134,5 +137,5 @@ export function ticketsIn(kind: Kind, body: unknown): Record<string, unknown>[] 
 }
 
 /** Ver las colas de una organización y sacar turno exige estar vinculado a ella (o haber sido su cliente antes). Lo propio —mis turnos, avisos— no. */
-const NEEDS_LINK: ReadonlySet<Kind> = new Set<Kind>(["queues_list", "queue_get", "queue_schedule", "queue_slots", "queue_state", "ticket_create"]);
+const NEEDS_LINK: ReadonlySet<Kind> = new Set<Kind>(["queues_list", "queue_get", "queue_schedule", "queue_slots", "queue_state", "queue_now", "ticket_create"]);
 export const requiresLink = (kind: Kind): boolean => NEEDS_LINK.has(kind);
