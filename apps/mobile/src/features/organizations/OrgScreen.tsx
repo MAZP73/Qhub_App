@@ -3,10 +3,10 @@ import { useNavigation, useRoute, type RouteProp } from '@react-navigation/nativ
 import { useQueryClient } from '@tanstack/react-query';
 import { defaultQueuePrefix, friendlyError } from '@qhub/core';
 import { useState } from 'react';
-import { AppBar, Button, Card, ConfirmModal, EmptyState, Icon, IconButton, ListRow, OrgMark, Screen, Skeleton, Txt, useToast } from '@/shared/ui/kit';
+import { AppBar, Button, Card, ConfirmModal, EmptyState, Icon, IconButton, ListRow, OrgMark, Screen, Skeleton, Tag, Txt, useToast } from '@/shared/ui/kit';
 import { useContainer } from '@/app/container';
 import { useLinkedIds, useOrg, useOrgPrefixes, useOrgQueues, useQueueState } from '@/app/hooks';
-import { orgLocation, orgMark } from './organizations';
+import { KIND_LABEL, orgLocation, orgMark } from './organizations';
 import type { Nav, RootStackParamList } from '@/app/navigation';
 
 export function OrgScreen() {
@@ -43,10 +43,21 @@ export function OrgScreen() {
           <EmptyState title="No pudimos cargar esto" message={friendlyError(org.error)} action={<Button label="Reintentar" kind="tertiary" onPress={() => void org.refetch()} />} />
         ) : o ? (
           <>
-            <View className="flex-row gap-3 p-4 items-center">
-              <OrgMark text={orgMark(o.name)} sizePx={48} />
-              <View className="flex-1"><Txt variant="h4">{o.name}</Txt>{orgLocation(o) ? <Txt variant="caption" color="textSecondary">{orgLocation(o)}</Txt> : null}{o.code ? <Txt variant="caption" color="textSecondary">ID {o.code}</Txt> : null}{o.phone ? <Txt variant="caption" color="textSecondary">{o.phone}</Txt> : null}</View>
+            <View className="gap-3 bg-brand-ink p-4">
+              <View className="flex-row items-center gap-3">
+                <OrgMark text={orgMark(o.name)} sizePx={56} />
+                <View className="flex-1 gap-1">
+                  <Txt variant="h3" color="sidebarTextActive">{o.name}</Txt>
+                  <Tag label={KIND_LABEL[o.kind ?? 'empresa']} icon={o.kind === 'persona' ? 'user' : 'building'} />
+                </View>
+              </View>
+              <View className="gap-1">
+                {orgLocation(o) ? <View className="flex-row items-center gap-2"><Icon name="location" size={14} color="sidebarText" /><Txt variant="caption" color="sidebarText">{orgLocation(o)}</Txt></View> : null}
+                {o.phone ? <View className="flex-row items-center gap-2"><Icon name="call" size={14} color="sidebarText" /><Txt variant="caption" color="sidebarText">{o.phone}</Txt></View> : null}
+                {o.code ? <View className="flex-row items-center gap-2"><Icon name="code" size={14} color="sidebarText" /><Txt variant="caption" color="sidebarText">{`ID ${o.code}`}</Txt></View> : null}
+              </View>
             </View>
+            <View className="h-4" />
             {!linked ? (
               <View className="mx-4">
                 <Card>

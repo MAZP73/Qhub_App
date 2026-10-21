@@ -22,6 +22,7 @@ export class SupabaseOrganizationRepository implements OrganizationRepository {
       id: String(j.id), name: String(j.nombre), slug: String(j.slug), code: (j.codigo as string) ?? null, description: (j.descripcion as string) ?? null, address: (j.direccion as string) ?? null,
       city: (j.ciudad as string) ?? null, country: (j.pais as string) ?? null, phone: (j.telefono as string) ?? null, latitude: (j.latitud as number) ?? null, longitude: (j.longitud as number) ?? null,
       ...(j.vinculada === undefined ? {} : { linked: Boolean(j.vinculada) }),
+      ...(j.tipo === 'persona' || j.tipo === 'empresa' ? { kind: j.tipo as 'persona' | 'empresa' } : {}),
     };
   }
 

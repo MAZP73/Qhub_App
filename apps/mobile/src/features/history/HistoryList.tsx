@@ -1,16 +1,16 @@
 import { FlatList, View } from 'react-native';
 import { defaultQueuePrefix, friendlyError } from '@qhub/core';
-import { AppBar, Button, EmptyState, ListRow, OrgMark, Screen, Skeleton, TurnBadge, TurnNumber, Txt } from '@/shared/ui/kit';
+import { Button, EmptyState, ListRow, OrgMark, Skeleton, TurnBadge, TurnNumber, Txt } from '@/shared/ui/kit';
 import { useHistory } from '@/app/hooks';
 import { dayLabel, groupByDay } from './history';
 
-export function HistoryScreen() {
+/** Historial de turnos agrupado por día (va dentro de la pestaña Turnos). */
+export function HistoryList() {
   const q = useHistory();
   const groups = groupByDay(q.data ?? []);
   const now = new Date();
   return (
-    <Screen>
-      <AppBar title="Historial" />
+    <View className="flex-1">
       {q.isLoading ? <View className="p-4"><Skeleton height={64} /></View> : q.isError ? (
         <EmptyState title="No pudimos cargar esto" message={friendlyError(q.error)} action={<Button label="Reintentar" kind="tertiary" onPress={() => void q.refetch()} />} />
       ) : groups.length === 0 ? <EmptyState title="Aún no tienes turnos" message="Tus turnos pasados aparecerán aquí." /> : (
@@ -25,6 +25,6 @@ export function HistoryScreen() {
           </View>
         )} />
       )}
-    </Screen>
+    </View>
   );
 }

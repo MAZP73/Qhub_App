@@ -1,7 +1,7 @@
 import { act, screen, userEvent, waitFor } from '@testing-library/react-native';
 import { conflictFailure, forbiddenFailure, networkFailure, unauthorizedFailure } from '@qhub/core';
 import type { AppNotification } from '@qhub/api-client';
-import { camila, entry, FakeGateway, FakeEditRequests, FakeAccountNotices, FakeHistoryRepository, FakeNotifications, FakeOrganizationRepository, FakeTickets, FakeUserRepository, makeContainer, ticket } from '@/testing/fakes';
+import { camila, entry, notaria, FakeGateway, FakeEditRequests, FakeAccountNotices, FakeHistoryRepository, FakeNotifications, FakeOrganizationRepository, FakeTickets, FakeUserRepository, makeContainer, ticket } from '@/testing/fakes';
 import { renderApp } from '@/testing/harness';
 
 const signedIn = (o: Parameters<typeof makeContainer>[0] = {}) => makeContainer({ users: new FakeUserRepository(camila), ...o });
@@ -38,11 +38,11 @@ describe('acceso', () => {
     expect(await screen.findByText('Correo o contraseña incorrectos.')).toBeTruthy();
   });
 
-  it('iniciar sesión lleva a "Mi turno" vacío', async () => {
+  it('iniciar sesión lleva a Inicio sin turnos', async () => {
     const { press, type } = setup();
     await renderApp(makeContainer());
     await type('Correo', 'camila@x.co'); await type('Contraseña', 'secreto123');await press('Continuar');
-    expect(await screen.findByText('Aún no estás vinculado a ninguna organización')).toBeTruthy();
+    expect(await screen.findByText('No tienes turnos activos')).toBeTruthy();
   });
 
   it('crear cuenta avisa que hay que confirmar el correo', async () => {
@@ -80,14 +80,14 @@ describe('recuperar contraseña', () => {
     await renderApp(c);
     await act(async () => { await c.session.handleUrl(RECOVERY); });
     expect(await screen.findByText('Elige tu nueva contraseña')).toBeTruthy();
-    expect(screen.queryByText('Aún no estás vinculado a ninguna organización')).toBeNull();
+    expect(screen.queryByText('No tienes turnos activos')).toBeNull();
     await type('Contraseña nueva', 'corta'); await type('Repite la contraseña', 'otra'); await press('Guardar contraseña');
     expect(await screen.findByText('Usa al menos 8 caracteres.')).toBeTruthy();
     await user.clear(await screen.findByLabelText('Contraseña nueva')); await user.clear(await screen.findByLabelText('Repite la contraseña'));
     await type('Contraseña nueva', 'nueva-clave-9'); await type('Repite la contraseña', 'distinta-99'); await press('Guardar contraseña');
     expect(await screen.findByText('Las contraseñas no coinciden.')).toBeTruthy();
     await user.clear(await screen.findByLabelText('Repite la contraseña')); await type('Repite la contraseña', 'nueva-clave-9'); await press('Guardar contraseña');
-    expect(await screen.findByText('Aún no estás vinculado a ninguna organización')).toBeTruthy();
+    expect(await screen.findByText('No tienes turnos activos')).toBeTruthy();
     expect(c.fakes.users.calls).toEqual(['link:tok', 'password:nueva-clave-9']);
   });
 
@@ -112,7 +112,7 @@ describe('recuperar contraseña', () => {
     const c = makeContainer();
     await renderApp(c);
     await act(async () => { await c.session.handleUrl('qhub://auth/callback#access_token=tok&refresh_token=ref&type=signup'); });
-    expect(await screen.findByText('Aún no estás vinculado a ninguna organización')).toBeTruthy();
+    expect(await screen.findByText('No tienes turnos activos')).toBeTruthy();
     expect(screen.queryByText('Elige tu nueva contraseña')).toBeNull();
   });
 
@@ -124,12 +124,45 @@ describe('recuperar contraseña', () => {
   });
 });
 
+describe('inicio y navegación', () => {
+  it('el inicio saluda por nombre y ofrece dos accesos rápidos separados: Turnos y Organizaciones', async () => {
+    const { press } = setup();
+    await renderApp(signedIn());
+    expect(await screen.findByText('Hola, Camila')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Turnos' })).toBeTruthy();
+    await press('Organizaciones');
+    expect(await screen.findByRole('button', { name: 'Personas' })).toBeTruthy();   // llegó a la pantalla de organizaciones
+  });
+
+  it('las cuatro pestañas son Inicio, Turnos, Organizaciones y Avisos', async () => {
+    await renderApp(signedIn());
+    for (const name of ['Inicio', 'Turnos', 'Organizaciones', 'Avisos']) expect(await screen.findByRole('tab', { name })).toBeTruthy();
+    expect(screen.queryByRole('tab', { name: 'Historial' })).toBeNull();
+  });
+
+  it('organizaciones muestra empresas y cuentas de personas, con etiqueta y filtro', async () => {
+    const orgs = new FakeOrganizationRepository([{ ...notaria, kind: 'empresa' }, { id: 'p1', code: 'QH-PER123', name: 'Dra. Ana Pérez', slug: 'ana', city: 'Quito', kind: 'persona' }]);
+    const { tab, press } = setup();
+    await renderApp(signedIn({ orgs }));
+    await tab('Organizaciones');
+    expect(await screen.findByText('Dra. Ana Pérez')).toBeTruthy();
+    expect(screen.getByText('Notaría 12')).toBeTruthy();
+    expect(screen.getAllByText('Persona').length).toBeGreaterThan(0);
+    await press('Personas');
+    expect(screen.queryByText('Notaría 12')).toBeNull();
+    expect(screen.getByText('Dra. Ana Pérez')).toBeTruthy();
+    await press('Empresas');
+    expect(screen.queryByText('Dra. Ana Pérez')).toBeNull();
+    expect(screen.getByText('Notaría 12')).toBeTruthy();
+  });
+});
+
 describe('con sesión', () => {
   it('explorar lista organizaciones y busca', async () => {
     const c = signedIn();
     const { tab, user } = setup();
     await renderApp(c);
-    await tab('Explorar');
+    await tab('Organizaciones');
     expect(await screen.findByText('Notaría 12')).toBeTruthy();
     expect(screen.getByText('Banco Cooperativo')).toBeTruthy();
     await user.type(screen.getByLabelText('Buscar'), 'banco');
@@ -141,7 +174,7 @@ describe('con sesión', () => {
   it('sin resultados', async () => {
     const { tab } = setup();
     await renderApp(signedIn({ orgs: new FakeOrganizationRepository([]) }));
-    await tab('Explorar');
+    await tab('Organizaciones');
     expect(await screen.findByText('Aún no hay organizaciones')).toBeTruthy();
   });
 
@@ -149,7 +182,7 @@ describe('con sesión', () => {
     const orgs = new FakeOrganizationRepository(); orgs.searchFailure = networkFailure();
     const { tab } = setup();
     await renderApp(signedIn({ orgs }));
-    await tab('Explorar');
+    await tab('Organizaciones');
     expect(await screen.findByText('No pudimos cargar esto')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Reintentar' })).toBeTruthy();
   });
@@ -158,7 +191,7 @@ describe('con sesión', () => {
     const gw = new FakeGateway();
     const { tab, text, press } = setup();
     await renderApp(signedIn({ gateway: gw, orgs: linkedOrgs() }));
-    await tab('Explorar');
+    await tab('Organizaciones');
     await screen.findByText('Notaría 12');
     await text('Notaría 12');
     expect(await screen.findByText('Colas abiertas')).toBeTruthy();
@@ -177,7 +210,7 @@ describe('con sesión', () => {
     const gw = new FakeGateway();
     const { tab, text, press, user } = setup();
     await renderApp(signedIn({ gateway: gw, orgs: linkedOrgs() }));
-    await tab('Explorar');
+    await tab('Organizaciones');
     await user.press(await screen.findByText('Notaría 12'));
     await user.press(await screen.findByText('Escrituras'));
     await user.press(await screen.findByRole('button', { name: 'Reservar cita' }));
@@ -200,7 +233,7 @@ describe('con sesión', () => {
     const gw = new FakeGateway(undefined, Object.assign(new FakeTickets(), { createFailure: conflictFailure('Esa franja ya no tiene cupos. Elige otra.') }));
     const { tab, user } = setup();
     await renderApp(signedIn({ gateway: gw, orgs: linkedOrgs() }));
-    await tab('Explorar');
+    await tab('Organizaciones');
     await user.press(await screen.findByText('Notaría 12'));
     await user.press(await screen.findByText('Escrituras'));
     await user.press(await screen.findByRole('button', { name: 'Turno ahora' }));
@@ -213,7 +246,7 @@ describe('con sesión', () => {
     const orgs = new FakeOrganizationRepository();
     const { tab, user, press } = setup();
     await renderApp(signedIn({ orgs }));
-    await tab('Explorar');
+    await tab('Organizaciones');
     expect(await screen.findByText('ID QH-N12ABC')).toBeTruthy();
     await user.type(screen.getByLabelText('Buscar'), 'qh-n12abc');
     await waitFor(() => { expect(screen.queryByText('Banco Cooperativo')).toBeNull(); expect(screen.getByText('Notaría 12')).toBeTruthy(); }, { timeout: 5000 });
@@ -226,7 +259,7 @@ describe('con sesión', () => {
     const orgs = new FakeOrganizationRepository();
     const { tab, text, press } = setup();
     await renderApp(signedIn({ orgs, gateway: new FakeGateway() }));
-    await tab('Explorar');
+    await tab('Organizaciones');
     await text('Notaría 12');
     expect(await screen.findByText('Vincúlate para continuar')).toBeTruthy();
     expect(screen.queryByText('Colas abiertas')).toBeNull();
@@ -240,8 +273,8 @@ describe('con sesión', () => {
     const orgs = Object.assign(new FakeOrganizationRepository(), { linkedSet: new Set(['org1', 'org2']) });
     const { text, press } = setup();
     await renderApp(signedIn({ orgs, gateway: new FakeGateway() }));
-    // Mi turno lista las dos organizaciones vinculadas
-    expect(await screen.findByText('Mis organizaciones')).toBeTruthy();
+    // Inicio lista las organizaciones vinculadas
+    expect(await screen.findByText('Tus organizaciones')).toBeTruthy();
     expect(screen.getByText('Banco Cooperativo')).toBeTruthy();
     await text('Notaría 12');
     await screen.findByText('Colas abiertas');
@@ -254,16 +287,16 @@ describe('con sesión', () => {
     expect(await screen.findByText('Vincúlate para continuar')).toBeTruthy();
   });
 
-  it('sin organizaciones vinculadas Mi turno invita a buscar la tuya', async () => {
+  it('sin organizaciones vinculadas Inicio invita a buscar la tuya', async () => {
     await renderApp(signedIn());
-    expect(await screen.findByText('Aún no estás vinculado a ninguna organización')).toBeTruthy();
+    expect(await screen.findByText('No tienes turnos activos')).toBeTruthy();
   });
 
   it('un bloqueo se explica al intentar vincularse', async () => {
     const orgs = new FakeOrganizationRepository(); orgs.linkFailure = forbiddenFailure('No puedes vincularte a esta organización.');
     const { tab, press } = setup();
     await renderApp(signedIn({ orgs }));
-    await tab('Explorar');
+    await tab('Organizaciones');
     await screen.findByText('Notaría 12');
     await press('Vincular');
     expect(await screen.findByText('No puedes vincularte a esta organización.')).toBeTruthy();
@@ -355,9 +388,10 @@ describe('con sesión', () => {
   });
 
   it('historial agrupa por día y muestra el estado con palabra', async () => {
-    const { tab } = setup();
+    const { tab, user } = setup();
     await renderApp(signedIn({ history: new FakeHistoryRepository([entry('a', 5, 'finalizado'), entry('b', 4, 'no_show', { createdAt: new Date(Date.now() - 864e5) })]) }));
-    await tab('Historial');
+    await tab('Turnos');
+    await user.press(await screen.findByRole('tab', { name: 'Historial' }));
     expect(await screen.findByText('Finalizado')).toBeTruthy();
     expect(screen.getByText('Hoy')).toBeTruthy();
     expect(screen.getByText('Ayer')).toBeTruthy();

@@ -6,11 +6,11 @@ import { renderApp } from '@/testing/harness';
 const linkedOrgs = () => Object.assign(new FakeOrganizationRepository(), { linkedSet: new Set(['org1']) });
 const signedIn = (o: Parameters<typeof makeContainer>[0] = {}) => makeContainer({ users: new FakeUserRepository(camila), ...o });
 
-/** Navega Explorar → Notaría 12 → cola Escrituras → asistente TakeTurn. */
+/** Navega Organizaciones → Notaría 12 → cola Escrituras → asistente TakeTurn. */
 async function openTakeTurn(c: Parameters<typeof renderApp>[0]) {
   const user = userEvent.setup();
   await renderApp(c);
-  await user.press(await screen.findByRole('tab', { name: 'Explorar' }));
+  await user.press(await screen.findByRole('tab', { name: 'Organizaciones' }));
   await user.press(await screen.findByText('Notaría 12'));
   await user.press(await screen.findByText('Escrituras'));
   return user;
@@ -34,9 +34,9 @@ describe('TakeTurn — asistente estilo cita (Objetivo 2)', () => {
     await user.press(await screen.findByRole('button', { name: 'Sacar turno ahora' }));
 
     await waitFor(() => expect(gw.ticketRepo.created).toEqual([{ queue: 'q1', slot: undefined }]));
-    // Paso 'done' con acción que navega a Mi turno.
+    // Paso 'done' con acción que navega a Turnos.
     await user.press(await screen.findByRole('button', { name: 'Ver mi turno' }));
-    expect(await screen.findByText('Mi turno')).toBeTruthy();
+    expect(await screen.findByRole('tab', { name: 'Activos' })).toBeTruthy();
   });
 
   it('reservar cita: día → franja avanza a confirmar y crea con slot.start en UTC', async () => {

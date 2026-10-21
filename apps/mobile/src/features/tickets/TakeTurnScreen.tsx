@@ -99,7 +99,7 @@ export function TakeTurnScreen() {
         <EmptyState
           title="¡Listo!"
           message={created ? `Tu turno es ${formatTurnNumber(created.number, prefix)}.` : undefined}
-          action={<Button label="Ver mi turno" icon="arrow-right" kind="accent" onPress={() => nav.navigate('Tabs', { screen: 'MyTurn' })} />}
+          action={<Button label="Ver mi turno" icon="arrow-right" kind="accent" onPress={() => nav.navigate('Tabs', { screen: 'Turns' })} />}
         />
       );
     }

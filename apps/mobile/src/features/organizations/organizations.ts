@@ -7,7 +7,12 @@ export interface OrganizationSummary {
   code?: string | null;
   /** La persona ya está vinculada (es cliente de esta organización). */
   linked?: boolean;
+  /** Empresa (con equipo) o cuenta personal (una persona natural). */
+  kind?: OrganizationKind;
 }
+
+export type OrganizationKind = 'empresa' | 'persona';
+export const KIND_LABEL: Record<OrganizationKind, string> = { empresa: 'Empresa', persona: 'Persona' };
 
 /** Iniciales para la marca (`Notaría 12` → `N1`). */
 export function orgMark(name: string): string {

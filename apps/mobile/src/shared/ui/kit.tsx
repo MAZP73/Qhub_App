@@ -179,6 +179,60 @@ export function Section({ title, children, hint }: { title: string; children?: R
   );
 }
 
+/** Filtro en forma de píldoras (una activa). */
+export function Chips({ labels, index, onChange }: { labels: readonly string[]; index: number; onChange: (i: number) => void }) {
+  return (
+    <View className="flex-row flex-wrap gap-2">
+      {labels.map((l, i) => (
+        <Pressable key={l} accessibilityRole="button" accessibilityLabel={l} accessibilityState={{ selected: i === index }} onPress={() => onChange(i)}
+          className={cx('h-control-md justify-center rounded-full border px-4', i === index ? 'border-interactive bg-interactive' : 'border-border-strong bg-layer-01')}>
+          <Txt variant="label" weight={i === index ? 600 : 400} color={i === index ? 'textOnColor' : 'textPrimary'}>{l}</Txt>
+        </Pressable>
+      ))}
+    </View>
+  );
+}
+
+/** Etiqueta pequeña (p. ej. «Empresa», «Persona»). */
+export function Tag({ label, icon }: { label: string; icon?: IconName }) {
+  return (
+    <View className="flex-row items-center gap-1 self-start rounded-full bg-layer-02 px-2 py-[2px]">
+      {icon ? <Icon name={icon} size={12} color="textSecondary" /> : null}
+      <Txt variant="caption" color="textSecondary">{label}</Txt>
+    </View>
+  );
+}
+
+/** Barra de avance (0–1) para la espera: cuanto más llena, más cerca el turno. */
+export function ProgressBar({ value, label }: { value: number; label: string }) {
+  const pct = Math.round(Math.min(1, Math.max(0, value)) * 100);
+  return (
+    <View accessibilityRole="progressbar" accessibilityLabel={label} accessibilityValue={{ min: 0, max: 100, now: pct }} className="h-1.5 overflow-hidden rounded-full bg-layer-selected">
+      <View className="h-full rounded-full bg-brand-mint" style={{ width: `${pct}%` }} />
+    </View>
+  );
+}
+
+/** Acceso rápido grande: ícono en un círculo, título y una línea de contexto. */
+export function Tile({ icon, title, caption, onPress }: { icon: IconName; title: string; caption?: string; onPress: () => void }) {
+  return (
+    <Pressable accessibilityRole="button" accessibilityLabel={title} onPress={onPress} className="flex-1 gap-3 rounded-md border border-border-subtle bg-layer-01 p-4 active:opacity-80">
+      <View className="size-11 items-center justify-center rounded-full bg-layer-02"><Icon name={icon} size={22} color="link" /></View>
+      <View><Txt weight={600}>{title}</Txt>{caption ? <Txt variant="caption" color="textSecondary">{caption}</Txt> : null}</View>
+    </Pressable>
+  );
+}
+
+/** Título de sección con acción opcional a la derecha («Ver todas»). */
+export function SectionHeader({ title, action, onAction }: { title: string; action?: string; onAction?: () => void }) {
+  return (
+    <View className="flex-row items-center justify-between">
+      <Txt variant="h4" accessibilityRole="header">{title}</Txt>
+      {action && onAction ? <Pressable accessibilityRole="button" accessibilityLabel={action} onPress={onAction} hitSlop={8}><Txt variant="label" color="link">{action}</Txt></Pressable> : null}
+    </View>
+  );
+}
+
 export function Tabs({ labels, index, onChange }: { labels: readonly string[]; index: number; onChange: (i: number) => void }) {
   return (
     <ScrollView horizontal showsHorizontalScrollIndicator={false} className="grow-0 border-b border-border-subtle">
